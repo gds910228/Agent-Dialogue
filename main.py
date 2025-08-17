@@ -1,8 +1,8 @@
 """
-AI Web Search System - Main Entry Point
+AI Content Security System - Main Entry Point
 
-A comprehensive web search system supporting Zhipu web search API.
-Provides both MCP server capabilities and direct web search functionality.
+A comprehensive content security system supporting Zhipu content moderation API.
+Provides both MCP server capabilities and direct content moderation functionality.
 """
 
 import os
@@ -14,11 +14,11 @@ import asyncio
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from mcp.server.fastmcp import FastMCP
-from zhipu_websearch_client import ZhipuWebSearchClient
+from zhipu_moderation_client import ZhipuModerationClient
 from network_diagnostic import NetworkDiagnostic
 
 # Create an MCP server
-mcp = FastMCP("AI Web Search System")
+mcp = FastMCP("AI Content Security System")
 
 # Create directories for storing files
 OUTPUTS_DIR = Path("outputs")
@@ -40,83 +40,69 @@ api_key = config.get("zhipu_api_key") or os.getenv("ZHIPU_API_KEY")
 if not api_key:
     print("警告: 未找到智谱API密钥，请设置环境变量 ZHIPU_API_KEY 或在config.json中配置")
 
-websearch_base_url = config.get("api_settings", {}).get("base_url", "https://open.bigmodel.cn")
-search_engine = config.get("search_engine", "search_std")
-websearch_client = ZhipuWebSearchClient(api_key=api_key or "", base_url=websearch_base_url, search_engine=search_engine)
+moderation_base_url = config.get("api_settings", {}).get("base_url", "https://open.bigmodel.cn")
+moderation_client = ZhipuModerationClient(api_key=api_key or "", base_url=moderation_base_url)
 
-# Web Search Entry Point
-class WebSearchGenerator:
-    """主要的网络搜索入口类"""
+# Content Security Entry Point
+class ContentModerationGenerator:
+    """主要的内容安全入口类"""
     
     def __init__(self):
-        self.websearch_client = websearch_client
+        self.moderation_client = moderation_client
         self.outputs_dir = OUTPUTS_DIR
     
-    def search_web(self, 
-                   search_query: str,
-                   search_intent: bool = False,
-                   count: int = 10,
-                   search_recency_filter: str = "noLimit") -> Dict[str, Any]:
+    def moderate_content(self, input_text: str) -> Dict[str, Any]:
         """
-        主要的网络搜索入口
+        主要的内容安全审核入口
         
         Args:
-            search_query: 搜索查询字符串
-            search_intent: 是否返回搜索意图分析
-            count: 返回结果数量
-            search_recency_filter: 搜索时效性过滤
+            input_text: 需要审核的文本内容
             
         Returns:
-            搜索结果
+            审核结果
         """
-        return self.websearch_client.search(
-            search_query=search_query,
-            search_intent=search_intent,
-            count=count,
-            search_recency_filter=search_recency_filter
-        )
+        return self.moderation_client.moderate_content(input_text)
     
-    def search_with_intent(self, search_query: str, count: int = 10) -> Dict[str, Any]:
-        """执行带搜索意图分析的网络搜索"""
-        return self.websearch_client.search_with_intent(search_query, count)
+    def batch_moderate_content(self, input_texts: List[str]) -> List[Dict[str, Any]]:
+        """批量执行内容安全审核"""
+        return self.moderation_client.batch_moderate_content(input_texts)
     
-    def search_recent(self, search_query: str, recency: str = "day", count: int = 10) -> Dict[str, Any]:
-        """搜索最近的内容"""
-        return self.websearch_client.search_recent(search_query, recency, count)
+    def check_content_safety(self, input_text: str) -> Dict[str, Any]:
+        """检查内容安全性并返回详细分析"""
+        result = self.moderation_client.moderate_content(input_text)
+        formatted_result = self.moderation_client.format_moderation_result(result)
+        risk_summary = self.moderation_client.get_risk_summary(result)
+        
+        return {
+            "input": input_text,
+            "is_safe": risk_summary["is_safe"],
+            "risk_summary": risk_summary,
+            "detailed_result": formatted_result
+        }
 
-# 创建全局网络搜索实例
-websearch_generator = WebSearchGenerator()
+# 创建全局内容安全实例
+moderation_generator = ContentModerationGenerator()
 
 @mcp.tool()
-def web_search(
-    search_query: str,
-    search_intent: bool = False,
-    count: int = 10,
-    search_recency_filter: str = "noLimit"
-) -> Dict[str, Any]:
+def moderate_content(input_text: str) -> Dict[str, Any]:
     """
-    执行网络搜索
+    执行内容安全审核
     
     Args:
-        search_query: 搜索查询字符串
-        search_intent: 是否返回搜索意图分析
-        count: 返回结果数量，默认10
-        search_recency_filter: 搜索时效性过滤，可选值：noLimit, day, week, month, year
+        input_text: 需要审核的文本内容
     
     Returns:
-        包含搜索结果的字典
+        包含审核结果的字典
     """
     try:
-        if not search_query or not search_query.strip():
+        if not input_text or not input_text.strip():
             return {
                 "success": False,
-                "error": "搜索查询不能为空"
+                "error": "审核内容不能为空"
             }
         
         # 验证参数
-        validation = websearch_client.validate_search_params(
-            search_query, count, search_recency_filter
-        )
+        validation = moderation_client.validate_input(input_text)
         
         if not validation["valid"]:
             return {
@@ -124,29 +110,24 @@ def web_search(
                 "error": f"参数验证失败: {', '.join(validation['errors'])}"
             }
         
-        result = websearch_generator.search_web(
-            search_query=search_query,
-            search_intent=search_intent,
-            count=count,
-            search_recency_filter=search_recency_filter
-        )
+        result = moderation_generator.moderate_content(input_text)
         
         # 格式化结果
-        formatted_result = websearch_client.format_search_results(result)
+        formatted_result = moderation_client.format_moderation_result(result)
+        risk_summary = moderation_client.get_risk_summary(result)
         
         return {
             "success": True,
-            "search_query": search_query,
-            "search_intent": search_intent,
-            "count": count,
-            "search_recency_filter": search_recency_filter,
-            "result": formatted_result
+            "input_text": input_text,
+            "is_safe": risk_summary["is_safe"],
+            "risk_summary": risk_summary,
+            "detailed_result": formatted_result
         }
         
     except Exception as e:
         return {
             "success": False,
-            "error": f"网络搜索失败: {str(e)}"
+            "error": f"内容安全审核失败: {str(e)}"
         }
 
 @mcp.tool()
@@ -204,97 +185,96 @@ def web_search_with_intent(
         }
 
 @mcp.tool()
-def web_search_recent(
-    search_query: str,
-    recency: str = "day",
-    count: int = 10
-) -> Dict[str, Any]:
+def batch_moderate_content(input_texts: List[str]) -> Dict[str, Any]:
     """
-    搜索最近的内容
+    批量执行内容安全审核
     
     Args:
-        search_query: 搜索查询字符串
-        recency: 时效性过滤，可选值：day, week, month, year
-        count: 返回结果数量，默认10
+        input_texts: 需要审核的文本内容列表
     
     Returns:
-        包含最近搜索结果的字典
+        包含批量审核结果的字典
     """
     try:
-        if not search_query or not search_query.strip():
+        if not input_texts:
             return {
                 "success": False,
-                "error": "搜索查询不能为空"
+                "error": "审核内容列表不能为空"
             }
         
-        # 验证参数
-        validation = websearch_client.validate_search_params(
-            search_query, count, recency
-        )
+        # 验证每个输入
+        for i, text in enumerate(input_texts):
+            validation = moderation_client.validate_input(text)
+            if not validation["valid"]:
+                return {
+                    "success": False,
+                    "error": f"第{i+1}个文本验证失败: {', '.join(validation['errors'])}"
+                }
         
-        if not validation["valid"]:
-            return {
-                "success": False,
-                "error": f"参数验证失败: {', '.join(validation['errors'])}"
-            }
+        results = moderation_generator.batch_moderate_content(input_texts)
         
-        result = websearch_generator.search_recent(
-            search_query=search_query,
-            recency=recency,
-            count=count
-        )
+        # 统计结果
+        total_count = len(results)
+        success_count = sum(1 for r in results if r["success"])
+        unsafe_count = 0
         
-        # 格式化结果
-        formatted_result = websearch_client.format_search_results(result)
+        for result in results:
+            if result["success"]:
+                risk_summary = moderation_client.get_risk_summary(result["result"])
+                if not risk_summary["is_safe"]:
+                    unsafe_count += 1
         
         return {
             "success": True,
-            "search_query": search_query,
-            "recency": recency,
-            "count": count,
-            "result": formatted_result
+            "total_count": total_count,
+            "success_count": success_count,
+            "unsafe_count": unsafe_count,
+            "results": results
         }
         
     except Exception as e:
         return {
             "success": False,
-            "error": f"最近内容搜索失败: {str(e)}"
+            "error": f"批量内容安全审核失败: {str(e)}"
         }
 
 @mcp.tool()
-def test_websearch_api(test_query: Optional[str] = None) -> Dict[str, Any]:
+def test_moderation_api(test_text: Optional[str] = None) -> Dict[str, Any]:
     """
-    测试网络搜索API连接和功能
+    测试内容安全API连接和功能
     
     Args:
-        test_query: 可选的测试搜索查询
+        test_text: 可选的测试文本内容
     
     Returns:
         包含测试结果的字典
     """
     try:
         # 测试API连接
-        connection_test = websearch_client.test_connection()
+        connection_test = moderation_client.test_connection()
         
         result = {
             "success": True,
             "connection_test": connection_test,
-            "supported_recency_filters": websearch_client.get_available_recency_filters()
+            "api_endpoint": moderation_client.moderation_url
         }
         
-        # 如果提供了测试查询，进行搜索测试
-        if test_query:
+        # 如果提供了测试文本，进行审核测试
+        if test_text:
             try:
-                search_result = websearch_client.search(test_query, count=3)
-                formatted_result = websearch_client.format_search_results(search_result)
-                search_test_result = {
+                moderation_result = moderation_client.moderate_content(test_text)
+                formatted_result = moderation_client.format_moderation_result(moderation_result)
+                risk_summary = moderation_client.get_risk_summary(moderation_result)
+                
+                moderation_test_result = {
                     "success": True,
-                    "search_query": test_query,
-                    "result_count": formatted_result.get("total_results", 0)
+                    "test_text": test_text,
+                    "is_safe": risk_summary["is_safe"],
+                    "risk_count": risk_summary["risk_count"]
                 }
-                result["search_test"] = search_test_result
+                result["moderation_test"] = moderation_test_result
             except Exception as e:
-                result["search_test"] = {
+                result["moderation_test"] = {
                     "success": False,
                     "error": str(e)
                 }
@@ -308,52 +288,42 @@ def test_websearch_api(test_query: Optional[str] = None) -> Dict[str, Any]:
         }
 
 @mcp.tool()
-def save_search_results_to_file(
-    search_query: str,
-    filename: str,
-    search_intent: bool = False,
-    count: int = 10,
-    search_recency_filter: str = "noLimit"
+def save_moderation_results_to_file(
+    input_text: str,
+    filename: str
 ) -> Dict[str, Any]:
     """
-    将搜索结果保存到文件
+    将审核结果保存到文件
     
     Args:
-        search_query: 搜索查询字符串
+        input_text: 审核的文本内容
         filename: 保存的文件名
-        search_intent: 是否返回搜索意图分析
-        count: 返回结果数量
-        search_recency_filter: 搜索时效性过滤
     
     Returns:
         保存结果字典
     """
     try:
-        if not search_query or not filename:
+        if not input_text or not filename:
             return {
                 "success": False,
-                "error": "搜索查询和文件名都是必需的"
+                "error": "审核内容和文件名都是必需的"
             }
         
-        # 获取搜索结果
-        search_result = websearch_generator.search_web(
-            search_query=search_query,
-            search_intent=search_intent,
-            count=count,
-            search_recency_filter=search_recency_filter
-        )
+        # 获取审核结果
+        moderation_result = moderation_generator.moderate_content(input_text)
         
         # 格式化结果
-        formatted_result = websearch_client.format_search_results(search_result)
+        formatted_result = moderation_client.format_moderation_result(moderation_result)
+        risk_summary = moderation_client.get_risk_summary(moderation_result)
         
         # 准备保存数据
         save_data = {
-            "search_query": search_query,
-            "search_intent": search_intent,
-            "count": count,
-            "search_recency_filter": search_recency_filter,
+            "input_text": input_text,
             "timestamp": time.time(),
-            "result": formatted_result
+            "is_safe": risk_summary["is_safe"],
+            "risk_summary": risk_summary,
+            "detailed_result": formatted_result,
+            "raw_result": moderation_result
         }
         
         # 创建唯一文件名
@@ -373,20 +343,21 @@ def save_search_results_to_file(
             "file_path": str(file_path),
             "filename": unique_filename,
             "size": file_path.stat().st_size,
-            "search_query": search_query,
-            "result_count": formatted_result.get("total_results", 0)
+            "input_text": input_text[:100] + "..." if len(input_text) > 100 else input_text,
+            "is_safe": risk_summary["is_safe"],
+            "risk_count": risk_summary["risk_count"]
         }
         
     except Exception as e:
         return {
             "success": False,
-            "error": f"保存搜索结果失败: {str(e)}"
+            "error": f"保存审核结果失败: {str(e)}"
         }
 
 @mcp.tool()
-def load_search_results_from_file(filename: str) -> Dict[str, Any]:
+def load_moderation_results_from_file(filename: str) -> Dict[str, Any]:
     """
-    从文件加载搜索结果
+    从文件加载审核结果
     
     Args:
         filename: 文件名
@@ -421,33 +392,32 @@ def load_search_results_from_file(filename: str) -> Dict[str, Any]:
         return {
             "success": True,
             "filename": file_path.name,
-            "search_query": data.get("search_query"),
-            "result_count": data.get("result", {}).get("total_results", 0),
+            "input_text": data.get("input_text", ""),
             "timestamp": data.get("timestamp"),
-            "search_intent": data.get("search_intent", False),
-            "count": data.get("count", 0),
-            "search_recency_filter": data.get("search_recency_filter", "noLimit"),
-            "result": data.get("result", {})
+            "is_safe": data.get("is_safe", True),
+            "risk_summary": data.get("risk_summary", {}),
+            "detailed_result": data.get("detailed_result", {}),
+            "raw_result": data.get("raw_result", {})
         }
         
     except Exception as e:
         return {
             "success": False,
-            "error": f"加载搜索结果失败: {str(e)}"
+            "error": f"加载审核结果失败: {str(e)}"
         }
 
 def run_interactive_mode():
-    """运行交互式网络搜索模式"""
+    """运行交互式内容安全模式"""
     print("=" * 60)
-    print("🔍 AI网络搜索系统 - 交互模式")
+    print("🛡️ AI内容安全系统 - 交互模式")
     print("=" * 60)
     print("支持的功能:")
-    print("1. 网络搜索")
-    print("2. 搜索意图分析")
-    print("3. 最近内容搜索")
+    print("1. 内容安全审核")
+    print("2. 批量内容审核")
+    print("3. 内容安全检查")
     print("4. 测试API连接")
-    print("5. 保存搜索结果到文件")
-    print("6. 从文件加载搜索结果")
+    print("5. 保存审核结果到文件")
+    print("6. 从文件加载审核结果")
     print("7. 启动MCP服务器")
     print("0. 退出")
     print("=" * 60)
@@ -460,11 +430,11 @@ def run_interactive_mode():
                 print("👋 再见!")
                 break
             elif choice == "1":
-                handle_web_search()
+                handle_content_moderation()
             elif choice == "2":
-                handle_search_with_intent()
+                handle_batch_moderation()
             elif choice == "3":
-                handle_search_recent()
+                handle_content_safety_check()
             elif choice == "4":
                 handle_api_test()
             elif choice == "5":
@@ -484,57 +454,43 @@ def run_interactive_mode():
         except Exception as e:
             print(f"❌ 错误: {e}")
 
-def handle_web_search():
-    """处理网络搜索"""
-    print("\n🔍 网络搜索")
+def handle_content_moderation():
+    """处理内容安全审核"""
+    print("\n🛡️ 内容安全审核")
     
-    search_query = input("请输入搜索查询: ").strip()
-    if not search_query:
-        print("❌ 搜索查询不能为空")
+    input_text = input("请输入需要审核的文本内容: ").strip()
+    if not input_text:
+        print("❌ 审核内容不能为空")
         return
     
-    count = input("请输入结果数量 (默认: 10): ").strip()
+    print("🛡️ 审核中...")
     try:
-        count = int(count) if count else 10
-    except ValueError:
-        count = 10
-    
-    recency_filters = websearch_client.get_available_recency_filters()
-    print(f"\n可用的时效性过滤: {', '.join(recency_filters)}")
-    search_recency_filter = input("请选择时效性过滤 (默认: noLimit): ").strip() or "noLimit"
-    
-    search_intent = input("是否启用搜索意图分析? (y/n, 默认: n): ").strip().lower() == "y"
-    
-    print("🔍 搜索中...")
-    try:
-        result = web_search(search_query, search_intent, count, search_recency_filter)
+        result = moderate_content(input_text)
         
         if result["success"]:
-            print(f"✅ 网络搜索成功!")
-            print(f"搜索查询: {result['search_query']}")
-            print(f"结果数量: {result['result']['total_results']}")
+            print(f"✅ 内容安全审核完成!")
+            print(f"审核内容: {input_text[:50]}{'...' if len(input_text) > 50 else ''}")
+            print(f"安全状态: {'✅ 安全' if result['is_safe'] else '⚠️ 存在风险'}")
             
-            # 显示搜索意图
-            if result['result']['search_intent']:
-                print(f"\n🎯 搜索意图:")
-                for intent in result['result']['search_intent']:
-                    print(f"  查询: {intent['query']}")
-                    print(f"  意图: {intent['intent']}")
-                    print(f"  关键词: {intent['keywords']}")
-            
-            # 显示搜索结果
-            print(f"\n📋 搜索结果:")
-            for i, item in enumerate(result['result']['search_results'][:5], 1):
-                print(f"{i}. {item['title']}")
-                print(f"   链接: {item['link']}")
-                print(f"   内容: {item['content'][:100]}...")
-                if item['publish_date']:
-                    print(f"   发布时间: {item['publish_date']}")
-                print()
+            # 显示风险摘要
+            risk_summary = result['risk_summary']
+            if not risk_summary['is_safe']:
+                print(f"\n⚠️ 风险分析:")
+                print(f"  风险数量: {risk_summary['risk_count']}")
+                print(f"  最高风险等级: {risk_summary['highest_risk_level']}")
+                print(f"  风险类型: {', '.join(risk_summary['risk_types'])}")
+                
+                # 显示详细风险信息
+                for detail in risk_summary['details']:
+                    print(f"  - 内容类型: {detail['content_type']}")
+                    print(f"    风险等级: {detail['risk_level']}")
+                    print(f"    风险类型: {', '.join(detail['risk_types'])}")
+            else:
+                print("✅ 内容安全，未发现风险")
         else:
-            print(f"❌ 搜索失败: {result['error']}")
+            print(f"❌ 审核失败: {result['error']}")
     except Exception as e:
-        print(f"❌ 搜索失败: {str(e)}")
+        print(f"❌ 审核失败: {str(e)}")
 
 def handle_search_with_intent():
     """处理搜索意图分析"""
@@ -581,87 +537,122 @@ def handle_search_with_intent():
     except Exception as e:
         print(f"❌ 搜索意图分析失败: {str(e)}")
 
-def handle_search_recent():
-    """处理最近内容搜索"""
-    print("\n📅 最近内容搜索")
+def handle_batch_moderation():
+    """处理批量内容审核"""
+    print("\n🛡️ 批量内容审核")
     
-    search_query = input("请输入搜索查询: ").strip()
-    if not search_query:
-        print("❌ 搜索查询不能为空")
+    print("请输入需要审核的文本内容（每行一个，输入空行结束）:")
+    input_texts = []
+    while True:
+        text = input().strip()
+        if not text:
+            break
+        input_texts.append(text)
+    
+    if not input_texts:
+        print("❌ 未输入任何内容")
         return
     
-    recency_filters = websearch_client.get_available_recency_filters()
-    print(f"\n可用的时效性过滤: {', '.join(recency_filters[1:])}")  # 排除noLimit
-    recency = input("请选择时效性过滤 (默认: day): ").strip() or "day"
-    
-    count = input("请输入结果数量 (默认: 10): ").strip()
+    print(f"🛡️ 批量审核 {len(input_texts)} 个文本中...")
     try:
-        count = int(count) if count else 10
-    except ValueError:
-        count = 10
-    
-    print("🔍 搜索最近内容中...")
-    try:
-        result = web_search_recent(search_query, recency, count)
+        result = batch_moderate_content(input_texts)
         
         if result["success"]:
-            print(f"✅ 最近内容搜索成功!")
-            print(f"搜索查询: {result['search_query']}")
-            print(f"时效性: {result['recency']}")
-            print(f"结果数量: {result['result']['total_results']}")
+            print(f"✅ 批量审核完成!")
+            print(f"总数量: {result['total_count']}")
+            print(f"成功数量: {result['success_count']}")
+            print(f"风险内容数量: {result['unsafe_count']}")
             
-            # 显示搜索结果
-            print(f"\n📋 最近搜索结果:")
-            for i, item in enumerate(result['result']['search_results'][:5], 1):
-                print(f"{i}. {item['title']}")
-                print(f"   链接: {item['link']}")
-                print(f"   内容: {item['content'][:100]}...")
-                if item['publish_date']:
-                    print(f"   发布时间: {item['publish_date']}")
-                print()
+            # 显示详细结果
+            print(f"\n📋 审核结果:")
+            for i, item in enumerate(result['results'], 1):
+                if item['success']:
+                    risk_summary = moderation_client.get_risk_summary(item['result'])
+                    status = "✅ 安全" if risk_summary['is_safe'] else "⚠️ 风险"
+                    print(f"{i}. {item['input'][:30]}... - {status}")
+                    if not risk_summary['is_safe']:
+                        print(f"   风险类型: {', '.join(risk_summary['risk_types'])}")
+                else:
+                    print(f"{i}. {item['input'][:30]}... - ❌ 审核失败: {item['error']}")
         else:
-            print(f"❌ 最近内容搜索失败: {result['error']}")
+            print(f"❌ 批量审核失败: {result['error']}")
     except Exception as e:
-        print(f"❌ 最近内容搜索失败: {str(e)}")
+        print(f"❌ 批量审核失败: {str(e)}")
+
+def handle_content_safety_check():
+    """处理内容安全检查"""
+    print("\n🛡️ 内容安全检查")
+    
+    input_text = input("请输入需要检查的文本内容: ").strip()
+    if not input_text:
+        print("❌ 检查内容不能为空")
+        return
+    
+    print("🛡️ 安全检查中...")
+    try:
+        result = moderation_generator.check_content_safety(input_text)
+        
+        print(f"✅ 内容安全检查完成!")
+        print(f"检查内容: {result['input'][:50]}{'...' if len(result['input']) > 50 else ''}")
+        print(f"安全状态: {'✅ 安全' if result['is_safe'] else '⚠️ 存在风险'}")
+        
+        # 显示详细风险分析
+        risk_summary = result['risk_summary']
+        if not risk_summary['is_safe']:
+            print(f"\n⚠️ 详细风险分析:")
+            print(f"  风险数量: {risk_summary['risk_count']}")
+            print(f"  最高风险等级: {risk_summary['highest_risk_level']}")
+            print(f"  风险类型: {', '.join(risk_summary['risk_types'])}")
+            
+            for detail in risk_summary['details']:
+                print(f"  - 内容类型: {detail['content_type']}")
+                print(f"    风险等级: {detail['risk_level']}")
+                print(f"    风险类型: {', '.join(detail['risk_types'])}")
+        else:
+            print("✅ 内容完全安全，未发现任何风险")
+            
+    except Exception as e:
+        print(f"❌ 安全检查失败: {str(e)}")
 
 def handle_api_test():
     """处理API测试"""
     print("\n🔧 API连接测试")
-    test_query = None
+    test_text = None
     
-    use_test_data = input("是否使用测试查询? (y/n, 默认: y): ").strip().lower() or "y"
+    use_test_data = input("是否使用测试文本? (y/n, 默认: y): ").strip().lower() or "y"
     if use_test_data == "y":
-        test_query = "北京天气"
+        test_text = "这是一个测试内容安全API的样例文本"
     
     print("🔍 测试中...")
     try:
-        result = test_websearch_api(test_query)
+        result = test_moderation_api(test_text)
         
         if result["success"]:
             print("✅ API测试结果:")
             conn_test = result["connection_test"]
             print(f"  连接状态: {'正常' if conn_test else '失败'}")
-            print(f"  支持的时效性过滤: {', '.join(result['supported_recency_filters'])}")
+            print(f"  API端点: {result['api_endpoint']}")
             
-            if 'search_test' in result:
-                search_test = result['search_test']
-                if search_test['success']:
-                    print(f"  测试搜索: 成功搜索 '{search_test['search_query']}'")
-                    print(f"  结果数量: {search_test['result_count']}")
+            if 'moderation_test' in result:
+                moderation_test = result['moderation_test']
+                if moderation_test['success']:
+                    print(f"  测试审核: 成功审核 '{moderation_test['test_text']}'")
+                    print(f"  安全状态: {'安全' if moderation_test['is_safe'] else '存在风险'}")
+                    print(f"  风险数量: {moderation_test['risk_count']}")
                 else:
-                    print(f"  测试搜索失败: {search_test['error']}")
+                    print(f"  测试审核失败: {moderation_test['error']}")
         else:
             print(f"❌ API测试失败: {result['error']}")
     except Exception as e:
         print(f"❌ API测试失败: {str(e)}")
 
 def handle_save_results():
-    """处理保存搜索结果"""
-    print("\n💾 保存搜索结果到文件")
+    """处理保存审核结果"""
+    print("\n💾 保存审核结果到文件")
     
-    search_query = input("请输入搜索查询: ").strip()
-    if not search_query:
-        print("❌ 搜索查询不能为空")
+    input_text = input("请输入需要审核的文本内容: ").strip()
+    if not input_text:
+        print("❌ 审核内容不能为空")
         return
     
     filename = input("请输入文件名: ").strip()
@@ -669,36 +660,25 @@ def handle_save_results():
         print("❌ 文件名不能为空")
         return
     
-    count = input("请输入结果数量 (默认: 10): ").strip()
+    print("💾 审核并保存中...")
     try:
-        count = int(count) if count else 10
-    except ValueError:
-        count = 10
-    
-    recency_filters = websearch_client.get_available_recency_filters()
-    print(f"\n可用的时效性过滤: {', '.join(recency_filters)}")
-    search_recency_filter = input("请选择时效性过滤 (默认: noLimit): ").strip() or "noLimit"
-    
-    search_intent = input("是否启用搜索意图分析? (y/n, 默认: n): ").strip().lower() == "y"
-    
-    print("💾 搜索并保存中...")
-    try:
-        result = save_search_results_to_file(search_query, filename, search_intent, count, search_recency_filter)
+        result = save_moderation_results_to_file(input_text, filename)
         
         if result["success"]:
             print(f"✅ 保存成功!")
             print(f"文件路径: {result['file_path']}")
             print(f"文件大小: {result['size']} 字节")
-            print(f"搜索查询: {result['search_query']}")
-            print(f"结果数量: {result['result_count']}")
+            print(f"审核内容: {result['input_text']}")
+            print(f"安全状态: {'安全' if result['is_safe'] else '存在风险'}")
+            print(f"风险数量: {result['risk_count']}")
         else:
             print(f"❌ 保存失败: {result['error']}")
     except Exception as e:
         print(f"❌ 保存失败: {str(e)}")
 
 def handle_load_results():
-    """处理加载搜索结果"""
-    print("\n📂 从文件加载搜索结果")
+    """处理加载审核结果"""
+    print("\n📂 从文件加载审核结果")
     filename = input("请输入文件名: ").strip()
     if not filename:
         print("❌ 文件名不能为空")
@@ -706,24 +686,21 @@ def handle_load_results():
     
     print("📂 加载中...")
     try:
-        result = load_search_results_from_file(filename)
+        result = load_moderation_results_from_file(filename)
         
         if result["success"]:
             print(f"✅ 加载成功!")
             print(f"文件名: {result['filename']}")
-            print(f"搜索查询: {result['search_query']}")
-            print(f"结果数量: {result['result_count']}")
-            print(f"时效性过滤: {result['search_recency_filter']}")
-            print(f"搜索意图分析: {'是' if result['search_intent'] else '否'}")
+            print(f"审核内容: {result['input_text'][:100]}{'...' if len(result['input_text']) > 100 else ''}")
+            print(f"安全状态: {'安全' if result['is_safe'] else '存在风险'}")
             
-            # 显示搜索结果
-            if result['result']['search_results']:
-                print("\n搜索结果:")
-                for i, item in enumerate(result['result']['search_results'][:3], 1):
-                    print(f"{i}. {item['title']}")
-                    print(f"   链接: {item['link']}")
-                    print(f"   内容: {item['content'][:80]}...")
-                    print()
+            # 显示风险摘要
+            risk_summary = result['risk_summary']
+            if not result['is_safe']:
+                print(f"\n风险分析:")
+                print(f"  风险数量: {risk_summary.get('risk_count', 0)}")
+                print(f"  最高风险等级: {risk_summary.get('highest_risk_level', 'unknown')}")
+                print(f"  风险类型: {', '.join(risk_summary.get('risk_types', []))}")
         else:
             print(f"❌ 加载失败: {result['error']}")
     except Exception as e:
