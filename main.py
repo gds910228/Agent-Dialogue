@@ -1,8 +1,8 @@
 """
-AI Speech-to-Text Converter - Main Entry Point
+AI Text-to-Speech Converter - Main Entry Point
 
-A comprehensive AI speech recognition system supporting multiple audio formats.
-Provides both MCP server capabilities and direct speech-to-text functionality.
+A comprehensive AI text-to-speech system supporting multiple voice types and audio formats.
+Provides both MCP server capabilities and direct text-to-speech functionality.
 """
 
 import os
@@ -14,259 +14,238 @@ import asyncio
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from mcp.server.fastmcp import FastMCP
-from zhipu_speech_client import ZhipuSpeechClient
+from zhipu_tts_client import ZhipuTTSClient
 from network_diagnostic import NetworkDiagnostic
 
 # Create an MCP server
-mcp = FastMCP("AI Speech-to-Text Converter")
+mcp = FastMCP("AI Text-to-Speech Converter")
 
 # Create directories for storing files
-UPLOADS_DIR = Path("uploads")
-UPLOADS_DIR.mkdir(exist_ok=True)
+OUTPUTS_DIR = Path("outputs")
+OUTPUTS_DIR.mkdir(exist_ok=True)
 
 # Initialize clients
-speech_client = ZhipuSpeechClient()
+tts_client = ZhipuTTSClient()
 
-# Speech Recognition Entry Point
-class SpeechRecognition:
-    """主要的语音识别入口类"""
+# Text-to-Speech Entry Point
+class TextToSpeech:
+    """主要的文本转语音入口类"""
     
     def __init__(self):
-        self.speech_client = speech_client
-        self.uploads_dir = UPLOADS_DIR
+        self.tts_client = tts_client
+        self.outputs_dir = OUTPUTS_DIR
         
     
     
-    def transcribe_audio(self, 
-                        audio_path: str,
-                        model: str = "glm-asr",
-                        language: Optional[str] = None,
-                        prompt: Optional[str] = None) -> Dict[str, Any]:
+    def text_to_speech(self, 
+                      text: str,
+                      voice: str = "tongtong",
+                      model: str = "cogtts",
+                      response_format: str = "wav") -> Dict[str, Any]:
         """
-        主要的语音转文本入口
+        主要的文本转语音入口
         
         Args:
-            audio_path: 音频文件路径
-            model: 使用的模型 (glm-asr)
-            language: 音频语言
-            prompt: 提示词
+            text: 要转换的文本
+            voice: 语音类型 (tongtong, xiaoxiao, xiaomo, xiaobei, xiaoxuan)
+            model: 使用的模型 (cogtts)
+            response_format: 音频格式 (wav, mp3)
             
         Returns:
-            转录结果
+            转换结果
         """
-        return self.speech_client.transcribe_audio(
-            audio_path=audio_path,
+        return self.tts_client.text_to_speech(
+            text=text,
+            voice=voice,
             model=model,
-            language=language,
-            prompt=prompt
-        )
-    
-    def transcribe_with_timestamps(self, audio_path: str, model: str = "glm-asr") -> Dict[str, Any]:
-        """带时间戳的语音转文本"""
-        return self.speech_client.transcribe_with_timestamps(audio_path, model)
-    
-    def transcribe_to_srt(self, audio_path: str, model: str = "glm-asr") -> Dict[str, Any]:
-        """转录为SRT字幕格式"""
-        return self.speech_client.transcribe_to_srt(audio_path, model)
-    
-    def batch_transcribe(self, audio_files: List[str], model: str = "glm-asr") -> Dict[str, Any]:
-        """批量语音转文本"""
-        return self.speech_client.batch_transcribe(audio_files, model)
-
-# 创建全局语音识别实例
-speech_recognition = SpeechRecognition()
-
-@mcp.tool()
-@mcp.tool()
-def transcribe_audio_file(
-    audio_path: str,
-    model: str = "glm-asr",
-    language: Optional[str] = None,
-    prompt: Optional[str] = None,
-    response_format: str = "json"
-) -> Dict[str, Any]:
-    """
-    Transcribe audio file to text using Zhipu's speech-to-text API.
-    
-    Args:
-        audio_path: Path to the audio file (.wav/.mp3, ≤25MB, ≤60s)
-        model: Speech recognition model to use (glm-asr)
-        language: Language of the audio (optional, e.g., 'zh', 'en')
-        prompt: Optional prompt to guide the transcription
-        response_format: Response format (json, text, srt, verbose_json, vtt)
-    
-    Returns:
-        Dictionary with transcription results
-    """
-    try:
-        if not audio_path:
-            return {
-                "success": False,
-                "error": "Audio path cannot be empty"
-            }
-        
-        # Check if file exists
-        path = Path(audio_path)
-        if not path.exists():
-            # Try relative to uploads directory
-            upload_path = UPLOADS_DIR / path.name
-            if upload_path.exists():
-                audio_path = str(upload_path)
-            else:
-                return {
-                    "success": False,
-                    "error": f"Audio file not found: {audio_path}"
-                }
-        
-        result = speech_recognition.speech_client.transcribe_audio(
-            audio_path=audio_path,
-            model=model,
-            language=language,
-            prompt=prompt,
             response_format=response_format
         )
-        return result
-        
-    except Exception as e:
-        return {
-            "success": False,
-            "error": f"Audio transcription failed: {str(e)}"
-        }
+    
+    def text_to_speech_file(self, text: str, filename: Optional[str] = None, 
+                           voice: str = "tongtong", model: str = "cogtts",
+                           response_format: str = "wav") -> Dict[str, Any]:
+        """文本转语音并保存文件"""
+        return self.tts_client.text_to_speech_file(
+            text=text, filename=filename, voice=voice, 
+            model=model, response_format=response_format,
+            output_dir=str(self.outputs_dir)
+        )
+    
+    def batch_text_to_speech(self, texts: List[str], voice: str = "tongtong", 
+                            model: str = "cogtts", response_format: str = "wav") -> Dict[str, Any]:
+        """批量文本转语音"""
+        return self.tts_client.batch_text_to_speech(
+            texts=texts, voice=voice, model=model, 
+            response_format=response_format, output_dir=str(self.outputs_dir)
+        )
+
+# 创建全局文本转语音实例
+text_to_speech = TextToSpeech()
 
 @mcp.tool()
-def transcribe_with_timestamps(audio_path: str, model: str = "whisper-1") -> Dict[str, Any]:
+def convert_text_to_speech(
+    text: str,
+    voice: str = "tongtong",
+    model: str = "cogtts",
+    response_format: str = "wav",
+    save_file: bool = True,
+    filename: Optional[str] = None
+) -> Dict[str, Any]:
     """
-    Transcribe audio with detailed timestamps and segments.
+    Convert text to speech using Zhipu's text-to-speech API.
     
     Args:
-        audio_path: Path to the audio file
-        model: Speech recognition model to use
+        text: Text to convert to speech
+        voice: Voice type (tongtong, xiaoxiao, xiaomo, xiaobei, xiaoxuan)
+        model: TTS model to use (cogtts)
+        response_format: Audio format (wav, mp3)
+        save_file: Whether to save the audio file
+        filename: Optional filename for saved audio
     
     Returns:
-        Dictionary with detailed transcription results including timestamps
+        Dictionary with conversion results
     """
     try:
-        if not audio_path:
+        if not text or not text.strip():
             return {
                 "success": False,
-                "error": "Audio path cannot be empty"
+                "error": "Text cannot be empty"
             }
         
-        # Check if file exists
-        path = Path(audio_path)
-        if not path.exists():
-            # Try relative to uploads directory
-            upload_path = UPLOADS_DIR / path.name
-            if upload_path.exists():
-                audio_path = str(upload_path)
-            else:
-                return {
-                    "success": False,
-                    "error": f"Audio file not found: {audio_path}"
-                }
+        if save_file:
+            result = text_to_speech.text_to_speech_file(
+                text=text,
+                filename=filename,
+                voice=voice,
+                model=model,
+                response_format=response_format
+            )
+        else:
+            result = text_to_speech.text_to_speech(
+                text=text,
+                voice=voice,
+                model=model,
+                response_format=response_format
+            )
         
-        result = speech_recognition.transcribe_with_timestamps(audio_path, model)
         return result
         
     except Exception as e:
         return {
             "success": False,
-            "error": f"Timestamp transcription failed: {str(e)}"
+            "error": f"Text-to-speech conversion failed: {str(e)}"
         }
 
 @mcp.tool()
-@mcp.tool()
-def transcribe_to_srt(audio_path: str, model: str = "glm-asr") -> Dict[str, Any]:
+def batch_text_to_speech(
+    texts: List[str],
+    voice: str = "tongtong",
+    model: str = "cogtts",
+    response_format: str = "wav"
+) -> Dict[str, Any]:
     """
-    Transcribe audio to SRT subtitle format.
+    Convert multiple texts to speech in batch.
     
     Args:
-        audio_path: Path to the audio file (.wav/.mp3, ≤25MB, ≤60s)
-        model: Speech recognition model to use (glm-asr)
+        texts: List of texts to convert
+        voice: Voice type (tongtong, xiaoxiao, xiaomo, xiaobei, xiaoxuan)
+        model: TTS model to use (cogtts)
+        response_format: Audio format (wav, mp3)
     
     Returns:
-        Dictionary with SRT format transcription
+        Dictionary with batch conversion results
     """
     try:
-        if not audio_path:
+        if not texts:
             return {
                 "success": False,
-                "error": "Audio path cannot be empty"
+                "error": "Texts list cannot be empty"
             }
         
-        # Check if file exists
-        path = Path(audio_path)
-        if not path.exists():
-            # Try relative to uploads directory
-            upload_path = UPLOADS_DIR / path.name
-            if upload_path.exists():
-                audio_path = str(upload_path)
-            else:
-                return {
-                    "success": False,
-                    "error": f"Audio file not found: {audio_path}"
-                }
+        # Filter out empty texts
+        valid_texts = [text.strip() for text in texts if text and text.strip()]
         
-        result = speech_recognition.transcribe_to_srt(audio_path, model)
+        if not valid_texts:
+            return {
+                "success": False,
+                "error": "No valid texts found"
+            }
+        
+        result = text_to_speech.batch_text_to_speech(
+            texts=valid_texts,
+            voice=voice,
+            model=model,
+            response_format=response_format
+        )
+        
         return result
         
     except Exception as e:
         return {
             "success": False,
-            "error": f"SRT transcription failed: {str(e)}"
+            "error": f"Batch text-to-speech conversion failed: {str(e)}"
         }
 
 @mcp.tool()
-@mcp.tool()
-def batch_transcribe_audio(audio_files: List[str], model: str = "glm-asr") -> Dict[str, Any]:
+def get_voice_types() -> Dict[str, Any]:
     """
-    Batch transcribe multiple audio files.
+    Get available voice types for text-to-speech conversion.
+    
+    Returns:
+        Dictionary with available voice types and their descriptions
+    """
+    try:
+        voice_types = tts_client.get_voice_types()
+        audio_formats = tts_client.get_audio_formats()
+        model_info = tts_client.get_model_info()
+        
+        return {
+            "success": True,
+            "voice_types": voice_types,
+            "audio_formats": audio_formats,
+            "models": model_info
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"Failed to get voice types: {str(e)}"
+        }
+
+@mcp.tool()
+def validate_text_input(text: str) -> Dict[str, Any]:
+    """
+    Validate text input for text-to-speech conversion.
     
     Args:
-        audio_files: List of audio file paths (.wav/.mp3, ≤25MB, ≤60s each)
-        model: Speech recognition model to use (glm-asr)
+        text: Text to validate
     
     Returns:
-        Dictionary with batch transcription results
+        Dictionary with validation results
     """
     try:
-        if not audio_files:
+        if not text:
             return {
                 "success": False,
-                "error": "Audio files list cannot be empty"
+                "error": "Text cannot be empty"
             }
         
-        # Validate file paths
-        valid_files = []
-        for audio_path in audio_files:
-            path = Path(audio_path)
-            if path.exists():
-                valid_files.append(str(path))
-            else:
-                # Try relative to uploads directory
-                upload_path = UPLOADS_DIR / path.name
-                if upload_path.exists():
-                    valid_files.append(str(upload_path))
-        
-        if not valid_files:
-            return {
-                "success": False,
-                "error": "No valid audio files found"
-            }
-        
-        result = speech_recognition.batch_transcribe(valid_files, model)
-        return result
+        result = tts_client.validate_text(text)
+        return {
+            "success": True,
+            "validation": result
+        }
         
     except Exception as e:
         return {
             "success": False,
-            "error": f"Batch transcription failed: {str(e)}"
+            "error": f"Text validation failed: {str(e)}"
         }
 
 @mcp.tool()
-def get_audio_info(audio_path: str) -> Dict[str, Any]:
+def get_audio_file_info(audio_path: str) -> Dict[str, Any]:
     """
-    Get information about an audio file.
+    Get information about a generated audio file.
     
     Args:
         audio_path: Path to the audio file
@@ -284,10 +263,10 @@ def get_audio_info(audio_path: str) -> Dict[str, Any]:
         # Check if file exists
         path = Path(audio_path)
         if not path.exists():
-            # Try relative to uploads directory
-            upload_path = UPLOADS_DIR / path.name
-            if upload_path.exists():
-                path = upload_path
+            # Try relative to outputs directory
+            output_path = OUTPUTS_DIR / path.name
+            if output_path.exists():
+                path = output_path
             else:
                 return {
                     "success": False,
@@ -298,9 +277,6 @@ def get_audio_info(audio_path: str) -> Dict[str, Any]:
         file_size = path.stat().st_size
         file_ext = path.suffix.lower()
         
-        # Validate audio format
-        validation = speech_client._validate_audio_file(str(path))
-        
         return {
             "success": True,
             "filename": path.name,
@@ -308,8 +284,7 @@ def get_audio_info(audio_path: str) -> Dict[str, Any]:
             "size": file_size,
             "size_mb": round(file_size / 1024 / 1024, 2),
             "format": file_ext,
-            "validation": validation,
-            "supported": validation["valid"]
+            "supported": file_ext in ['.wav', '.mp3']
         }
         
     except Exception as e:
@@ -319,41 +294,39 @@ def get_audio_info(audio_path: str) -> Dict[str, Any]:
         }
 
 @mcp.tool()
-def test_speech_api(test_file: Optional[str] = None) -> Dict[str, Any]:
+def test_tts_api(test_text: Optional[str] = None) -> Dict[str, Any]:
     """
-    Test the speech-to-text API connection and functionality.
+    Test the text-to-speech API connection and functionality.
     
     Args:
-        test_file: Optional path to a test audio file
+        test_text: Optional test text for conversion
     
     Returns:
         Dictionary with test results
     """
     try:
         # Test API connection
-        connection_test = speech_client.test_connection()
+        connection_test = tts_client.test_connection()
         
         result = {
             "success": True,
             "connection_test": connection_test,
-            "supported_formats": speech_client.get_supported_formats(),
-            "available_models": list(speech_client.speech_models.keys())
+            "voice_types": tts_client.get_voice_types(),
+            "audio_formats": tts_client.get_audio_formats(),
+            "available_models": list(tts_client.get_model_info().keys())
         }
         
-        # If test file provided, try transcription
-        if test_file:
-            path = Path(test_file)
-            if path.exists() or (UPLOADS_DIR / path.name).exists():
-                if not path.exists():
-                    path = UPLOADS_DIR / path.name
-                
-                transcription_test = speech_client.transcribe_audio(str(path))
-                result["transcription_test"] = transcription_test
-            else:
-                result["transcription_test"] = {
-                    "success": False,
-                    "error": f"Test file not found: {test_file}"
+        # If test text provided, try conversion
+        if test_text:
+            conversion_test = tts_client.text_to_speech(test_text)
+            if conversion_test["success"]:
+                result["conversion_test"] = {
+                    "success": True,
+                    "audio_size": conversion_test["size"],
+                    "format": conversion_test["format"]
                 }
+            else:
+                result["conversion_test"] = conversion_test
         
         return result
         
@@ -364,47 +337,35 @@ def test_speech_api(test_file: Optional[str] = None) -> Dict[str, Any]:
         }
 
 @mcp.tool()
-def upload_file(file_content: str, filename: str, encoding: str = "base64") -> Dict[str, Any]:
+def save_text_content(text_content: str, filename: str) -> Dict[str, Any]:
     """
-    Upload an audio file to the server for transcription.
+    Save text content to a file for later TTS conversion.
     
     Args:
-        file_content: File content (base64 encoded or text)
+        text_content: Text content to save
         filename: Name of the file
-        encoding: Encoding type (base64, text)
     
     Returns:
-        Dictionary with upload result
+        Dictionary with save result
     """
     try:
-        if not file_content or not filename:
+        if not text_content or not filename:
             return {
                 "success": False,
-                "error": "File content and filename are required"
+                "error": "Text content and filename are required"
             }
         
         # Create unique filename to avoid conflicts
         file_id = str(uuid.uuid4())[:8]
         name, ext = os.path.splitext(filename)
+        if not ext:
+            ext = ".txt"
         unique_filename = f"{name}_{file_id}{ext}"
-        file_path = UPLOADS_DIR / unique_filename
+        file_path = OUTPUTS_DIR / unique_filename
         
-        # Save file based on encoding
-        if encoding == "base64":
-            import base64
-            try:
-                file_data = base64.b64decode(file_content)
-                with open(file_path, 'wb') as f:
-                    f.write(file_data)
-            except Exception as e:
-                return {
-                    "success": False,
-                    "error": f"Base64 decoding failed: {str(e)}"
-                }
-        else:
-            # Assume text content
-            with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(file_content)
+        # Save text file
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(text_content)
         
         return {
             "success": True,
@@ -417,43 +378,45 @@ def upload_file(file_content: str, filename: str, encoding: str = "base64") -> D
     except Exception as e:
         return {
             "success": False,
-            "error": f"File upload failed: {str(e)}"
+            "error": f"File save failed: {str(e)}"
         }
 
 @mcp.tool()
-def get_supported_formats() -> Dict[str, Any]:
+def get_supported_options() -> Dict[str, Any]:
     """
-    Get list of supported audio formats for speech-to-text conversion.
+    Get list of supported options for text-to-speech conversion.
     
     Returns:
-        Dictionary with supported formats
+        Dictionary with supported options
     """
     try:
-        formats = speech_client.get_supported_formats()
-        models = speech_client.get_model_info()
+        voice_types = tts_client.get_voice_types()
+        audio_formats = tts_client.get_audio_formats()
+        models = tts_client.get_model_info()
         return {
             "success": True,
-            "formats": formats,
+            "voice_types": voice_types,
+            "audio_formats": audio_formats,
             "models": list(models.keys()),
             "model_details": models
         }
     except Exception as e:
         return {
             "success": False,
-            "error": f"Failed to get supported formats: {str(e)}"
+            "error": f"Failed to get supported options: {str(e)}"
         }
 
 @mcp.tool()
-def list_uploaded_files() -> Dict[str, Any]:
+def list_generated_files() -> Dict[str, Any]:
     """
-    List all uploaded audio files available for transcription.
+    List all generated audio files.
     
     Returns:
         Dictionary with file list
     """
     try:
         files = []
-        for file_path in UPLOADS_DIR.iterdir():
+        for file_path in OUTPUTS_DIR.iterdir():
             if file_path.is_file():
                 files.append({
                     "filename": file_path.name,
@@ -479,55 +442,52 @@ def list_uploaded_files() -> Dict[str, Any]:
         }
 
 def run_interactive_mode():
-    """运行交互式语音转文本模式"""
+    """运行交互式文本转语音模式"""
     print("=" * 60)
-    print("🎤 AI语音转文本转换器 - 交互模式")
+    print("🔊 AI文本转语音转换器 - 交互模式")
     print("=" * 60)
     print("支持的功能:")
-    print("1. 语音转文本")
-    print("2. 带时间戳转录")
-    print("3. 生成SRT字幕")
-    print("4. 批量转录")
-    print("5. 查看音频信息")
-    print("6. 测试API连接")
-    print("7. 网络诊断")
-    print("8. 启动MCP服务器")
-    print("9. 启动Web服务器")
+    print("1. 文本转语音")
+    print("2. 批量文本转语音")
+    print("3. 查看语音类型")
+    print("4. 查看生成的音频文件")
+    print("5. 测试API连接")
+    print("6. 网络诊断")
+    print("7. 启动MCP服务器")
+    print("8. 启动Web服务器")
     print("0. 退出")
     print("=" * 60)
     
     while True:
         try:
-            choice = input("\n请选择功能 (0-9): ").strip()
+            choice = input("\n请选择功能 (0-8): ").strip()
             
             if choice == "0":
                 print("👋 再见!")
                 break
             elif choice == "1":
-                handle_audio_transcription()
+                handle_text_to_speech()
             elif choice == "2":
-                handle_timestamp_transcription()
+                handle_batch_text_to_speech()
             elif choice == "3":
-                handle_srt_generation()
+                handle_voice_types()
             elif choice == "4":
-                handle_batch_transcription()
+                handle_list_audio_files()
             elif choice == "5":
-                handle_audio_info()
-            elif choice == "6":
                 handle_api_test()
-            elif choice == "7":
+            elif choice == "6":
                 handle_network_diagnostic()
-            elif choice == "8":
+            elif choice == "7":
                 print("🔧 启动MCP服务器...")
                 mcp.run(transport="sse")
                 break
-            elif choice == "9":
+            elif choice == "8":
                 print("🌐 启动Web服务器...")
                 import subprocess
-                subprocess.run([sys.executable, "speech_server.py"])
+                subprocess.run([sys.executable, "tts_server.py"])
                 break
             else:
-                print("❌ 无效选择，请输入0-9")
+                print("❌ 无效选择，请输入0-8")
                 
         except KeyboardInterrupt:
             print("\n👋 再见!")
@@ -535,145 +495,148 @@ def run_interactive_mode():
         except Exception as e:
             print(f"❌ 错误: {e}")
 
-def handle_audio_transcription():
-    """处理音频转录"""
-    print("\n🎤 语音转文本")
-    audio_path = input("请输入音频文件路径: ").strip()
-    if not audio_path:
-        print("❌ 音频路径不能为空")
+def handle_text_to_speech():
+    """处理文本转语音"""
+    print("\n🔊 文本转语音")
+    text = input("请输入要转换的文本: ").strip()
+    if not text:
+        print("❌ 文本内容不能为空")
         return
     
-    language = input("请输入音频语言 (可选，如zh/en): ").strip() or None
-    prompt = input("请输入提示词 (可选): ").strip() or None
+    # 显示可用的语音类型
+    voice_types = tts_client.get_voice_types()
+    print("\n可用的语音类型:")
+    for voice, desc in voice_types.items():
+        print(f"  {voice}: {desc}")
     
-    print("🔍 转录中...")
-    result = speech_recognition.transcribe_audio(audio_path, language=language, prompt=prompt)
+    voice = input(f"\n请选择语音类型 (默认: tongtong): ").strip() or "tongtong"
+    format_choice = input("请选择音频格式 (wav/mp3，默认: wav): ").strip() or "wav"
     
-    if result["success"]:
-        print(f"✅ 转录结果:\n{result['text']}")
-        if result.get('language'):
-            print(f"检测到的语言: {result['language']}")
-    else:
-        print(f"❌ 转录失败: {result['error']}")
-
-def handle_timestamp_transcription():
-    """处理带时间戳转录"""
-    print("\n⏰ 带时间戳转录")
-    audio_path = input("请输入音频文件路径: ").strip()
-    if not audio_path:
-        print("❌ 音频路径不能为空")
-        return
-    
-    print("🔍 转录中...")
-    result = speech_recognition.transcribe_with_timestamps(audio_path)
+    print("🔍 转换中...")
+    result = text_to_speech.text_to_speech_file(
+        text=text, 
+        voice=voice, 
+        response_format=format_choice
+    )
     
     if result["success"]:
-        print(f"✅ 转录结果:\n{result['text']}")
-        if result.get('segments'):
-            print("\n时间戳信息:")
-            for segment in result['segments'][:5]:  # 只显示前5个片段
-                print(f"  {segment.get('start', 0):.2f}s - {segment.get('end', 0):.2f}s: {segment.get('text', '')}")
+        print(f"✅ 转换成功!")
+        print(f"文件路径: {result['file_path']}")
+        print(f"文件大小: {result['size']} 字节")
+        print(f"语音类型: {result['voice']}")
+        print(f"音频格式: {result['format']}")
     else:
-        print(f"❌ 转录失败: {result['error']}")
+        print(f"❌ 转换失败: {result['error']}")
 
-def handle_srt_generation():
-    """处理SRT字幕生成"""
-    print("\n📝 生成SRT字幕")
-    audio_path = input("请输入音频文件路径: ").strip()
-    if not audio_path:
-        print("❌ 音频路径不能为空")
-        return
+def handle_batch_text_to_speech():
+    """处理批量文本转语音"""
+    print("\n📁 批量文本转语音")
+    print("请输入要转换的文本 (每行一个，空行结束):")
     
-    print("🔍 生成字幕中...")
-    result = speech_recognition.transcribe_to_srt(audio_path)
-    
-    if result["success"]:
-        print("✅ SRT字幕生成成功!")
-        srt_content = result.get('srt_content', result.get('text', ''))
-        print("SRT内容预览:")
-        print(srt_content[:500] + "..." if len(srt_content) > 500 else srt_content)
-        
-        # 保存SRT文件
-        srt_path = Path(audio_path).with_suffix('.srt')
-        with open(srt_path, 'w', encoding='utf-8') as f:
-            f.write(srt_content)
-        print(f"SRT文件已保存到: {srt_path}")
-    else:
-        print(f"❌ 字幕生成失败: {result['error']}")
-
-def handle_batch_transcription():
-    """处理批量转录"""
-    print("\n📁 批量转录")
-    print("请输入音频文件路径 (每行一个，空行结束):")
-    
-    audio_files = []
+    texts = []
     while True:
-        path = input().strip()
-        if not path:
+        text = input().strip()
+        if not text:
             break
-        audio_files.append(path)
+        texts.append(text)
     
-    if not audio_files:
-        print("❌ 没有输入任何文件")
+    if not texts:
+        print("❌ 没有输入任何文本")
         return
     
-    print(f"🔍 批量转录 {len(audio_files)} 个文件...")
-    result = speech_recognition.batch_transcribe(audio_files)
+    # 显示可用的语音类型
+    voice_types = tts_client.get_voice_types()
+    print("\n可用的语音类型:")
+    for voice, desc in voice_types.items():
+        print(f"  {voice}: {desc}")
+    
+    voice = input(f"\n请选择语音类型 (默认: tongtong): ").strip() or "tongtong"
+    format_choice = input("请选择音频格式 (wav/mp3，默认: wav): ").strip() or "wav"
+    
+    print(f"🔍 批量转换 {len(texts)} 个文本...")
+    result = text_to_speech.batch_text_to_speech(
+        texts=texts, 
+        voice=voice, 
+        response_format=format_choice
+    )
     
     if result["success"]:
-        print(f"✅ 批量转录完成!")
+        print(f"✅ 批量转换完成!")
         print(f"总计: {result['total']}, 成功: {result['successful']}, 失败: {result['failed']}")
         
         for item in result['results']:
             file_result = item['result']
             if file_result['success']:
-                print(f"✅ {item['file']}: {file_result['text'][:100]}...")
+                print(f"✅ 文本 {item['index']}: {file_result['file_path']}")
             else:
-                print(f"❌ {item['file']}: {file_result['error']}")
+                print(f"❌ 文本 {item['index']}: {file_result['error']}")
     else:
-        print(f"❌ 批量转录失败: {result['error']}")
+        print(f"❌ 批量转换失败: {result['error']}")
 
-def handle_audio_info():
-    """处理音频信息查看"""
-    print("\n📊 音频信息")
-    audio_path = input("请输入音频文件路径: ").strip()
-    if not audio_path:
-        print("❌ 音频路径不能为空")
-        return
+def handle_voice_types():
+    """处理语音类型查看"""
+    print("\n🎭 语音类型信息")
     
-    result = get_audio_info(audio_path)
+    try:
+        voice_types = tts_client.get_voice_types()
+        audio_formats = tts_client.get_audio_formats()
+        models = tts_client.get_model_info()
+        
+        print("✅ 可用的语音类型:")
+        for voice, desc in voice_types.items():
+            print(f"  {voice}: {desc}")
+        
+        print(f"\n支持的音频格式: {', '.join(audio_formats)}")
+        
+        print("\n可用的模型:")
+        for model, desc in models.items():
+            print(f"  {model}: {desc}")
+            
+    except Exception as e:
+        print(f"❌ 获取信息失败: {str(e)}")
+
+def handle_list_audio_files():
+    """处理音频文件列表查看"""
+    print("\n📂 生成的音频文件")
+    
+    result = list_generated_files()
     
     if result["success"]:
-        print("✅ 音频信息:")
-        print(f"  文件名: {result['filename']}")
-        print(f"  大小: {result['size_mb']} MB")
-        print(f"  格式: {result['format']}")
-        print(f"  支持转录: {'是' if result['supported'] else '否'}")
-        if not result['supported']:
-            print(f"  错误: {result['validation']['error']}")
+        files = result["files"]
+        if files:
+            print(f"✅ 找到 {result['total']} 个文件:")
+            for file_info in files[:10]:  # 只显示前10个文件
+                size_mb = round(file_info['size'] / 1024 / 1024, 2)
+                print(f"  {file_info['filename']} ({size_mb} MB, {file_info['type']})")
+            
+            if len(files) > 10:
+                print(f"  ... 还有 {len(files) - 10} 个文件")
+        else:
+            print("📭 没有找到任何音频文件")
     else:
-        print(f"❌ 获取信息失败: {result['error']}")
+        print(f"❌ 获取文件列表失败: {result['error']}")
 
 def handle_api_test():
     """处理API测试"""
     print("\n🔧 API连接测试")
-    test_file = input("请输入测试音频文件路径 (可选): ").strip() or None
+    test_text = input("请输入测试文本 (可选): ").strip() or None
     
     print("🔍 测试中...")
-    result = test_speech_api(test_file)
+    result = test_tts_api(test_text)
     
     if result["success"]:
         print("✅ API测试结果:")
         print(f"  连接状态: {'正常' if result['connection_test']['success'] else '失败'}")
         print(f"  可用模型: {', '.join(result['available_models'])}")
-        print(f"  支持格式: {result['supported_formats']}")
+        print(f"  支持格式: {result['audio_formats']}")
+        print(f"  语音类型: {', '.join(result['voice_types'].keys())}")
         
-        if 'transcription_test' in result:
-            trans_result = result['transcription_test']
-            if trans_result['success']:
-                print(f"  测试转录: {trans_result['text'][:100]}...")
+        if 'conversion_test' in result:
+            conv_result = result['conversion_test']
+            if conv_result['success']:
+                print(f"  测试转换: 成功生成 {conv_result['audio_size']} 字节的 {conv_result['format']} 音频")
             else:
-                print(f"  测试转录失败: {trans_result['error']}")
+                print(f"  测试转换失败: {conv_result['error']}")
     else:
         print(f"❌ API测试失败: {result['error']}")
 
@@ -700,11 +663,11 @@ if __name__ == "__main__":
         elif sys.argv[1] == "--web":
             print("🌐 启动Web服务器模式...")
             import subprocess
-            subprocess.run([sys.executable, "speech_server.py"])
+            subprocess.run([sys.executable, "tts_server.py"])
         elif sys.argv[1] == "--test":
             print("🧪 运行测试...")
             import subprocess
-            subprocess.run([sys.executable, "test_speech.py"])
+            subprocess.run([sys.executable, "test_tts.py"])
         else:
             print("❌ 未知参数，支持的参数: --mcp, --web, --test")
     else:
