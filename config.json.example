@@ -12,6 +12,14 @@
     "max_documents": 128,
     "max_query_length": 4096
   },
+  "text_tokenizer": {
+    "base_url": "https://open.bigmodel.cn",
+    "tokenizer_endpoint": "/api/paas/v4/tokenizer",
+    "timeout": 30,
+    "max_retries": 3,
+    "models": ["glm-4-plus", "glm-4", "glm-3-turbo"],
+    "default_model": "glm-4-plus"
+  },
   "api_settings": {
     "timeout": 120,
     "max_retries": 3,

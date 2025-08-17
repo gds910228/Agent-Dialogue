@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智谱AI文本分词器</title>
+    <style>
+        :root {
+            --primary-color: #4a6cf7;
+            --secondary-color: #6c757d;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --light-color: #f8f9fa;
+            --dark-color: #343a40;
+            --border-color: #dee2e6;
+            --border-radius: 0.375rem;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f7fa;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: var(--border-radius);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        h1 {
+            color: var(--primary-color);
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: var(--secondary-color);
+            font-size: 1.1rem;
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card {
+            background-color: #fff;
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border-color);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            color: var(--dark-color);
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--dark-color);
+        }
+
+        select, input, textarea, button {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            font-family: inherit;
+        }
+
+        select {
+            background-color: #fff;
+            cursor: pointer;
+        }
+
+        textarea {
+            min-height: 150px;
+            resize: vertical;
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #3a5bd9;
+        }
+
+        button:disabled {
+            background-color: var(--secondary-color);
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background-color: var(--secondary-color);
+        }
+
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-group button {
+            flex: 1;
+        }
+
+        .result-container {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .result-card {
+            background-color: #f8f9fa;
+            border-radius: var(--border-radius);
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .result-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--dark-color);
+        }
+
+        .result-content {
+            background-color: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .token-count {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .token-details {
+            margin-top: 15px;
+            font-size: 0.9rem;
+            color: var(--secondary-color);
+        }
+
+        .message-container {
+            margin-bottom: 20px;
+        }
+
+        .message-row {
+            display: flex;
+            margin-bottom: 10px;
+            gap: 10px;
+        }
+
+        .message-role {
+            width: 120px;
+        }
+
+        .message-content {
+            flex: 1;
+        }
+
+        .message-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .btn-icon {
+            width: auto;
+            padding: 5px 10px;
+            font-size: 0.9rem;
+        }
+
+        .btn-add {
+            background-color: var(--success-color);
+        }
+
+        .btn-remove {
+            background-color: var(--danger-color);
+        }
+
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: var(--border-radius);
+            color: #721c24;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .message-row {
+                flex-direction: column;
+            }
+            
+            .message-role {
+                width: 100%;
+                margin-bottom: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>智谱AI文本分词器</h1>
+            <p class="subtitle">计算文本的Token数量，用于评估模型输入长度</p>
+        </header>
+
+        <div class="main-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">文本分词</h2>
+                </div>
+
+                <div id="error-container" class="alert" style="display: none;"></div>
+
+                <div class="form-group">
+                    <label for="model-select">选择模型</label>
+                    <select id="model-select">
+                        <option value="glm-4-plus" selected>GLM-4-Plus</option>
+                        <option value="glm-4">GLM-4</option>
+                        <option value="glm-3-turbo">GLM-3-Turbo</option>
+                    </select>
+                </div>
+
+                <div class="message-container" id="message-container">
+                    <div class="message-row" data-index="0">
+                        <div class="message-role">
+                            <select class="role-select">
+                                <option value="system">system</option>
+                                <option value="user" selected>user</option>
+                                <option value="assistant">assistant</option>
+                            </select>
+                        </div>
+                        <div class="message-content">
+                            <textarea class="content-textarea" placeholder="输入消息内容..."></textarea>
+                        </div>
+                        <div class="message-actions">
+                            <button class="btn-icon btn-add" title="添加消息"><i class="fas fa-plus"></i>+</button>
+                            <button class="btn-icon btn-remove" title="删除消息"><i class="fas fa-trash"></i>-</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button id="tokenize-btn">计算Token数量</button>
+                    <button id="clear-btn" class="btn-secondary">清空</button>
+                </div>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>处理中...</p>
+                </div>
+
+                <div class="result-container" id="result-container">
+                    <div class="result-card">
+                        <div class="result-header">
+                            <h3 class="result-title">分词结果</h3>
+                        </div>
+                        <div class="token-count" id="token-count">0</div>
+                        <div class="token-details" id="token-details"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const messageContainer = document.getElementById('message-container');
+            const tokenizeBtn = document.getElementById('tokenize-btn');
+            const clearBtn = document.getElementById('clear-btn');
+            const resultContainer = document.getElementById('result-container');
+            const tokenCountElement = document.getElementById('token-count');
+            const tokenDetailsElement = document.getElementById('token-details');
+            const loadingElement = document.getElementById('loading');
+            const errorContainer = document.getElementById('error-container');
+            const modelSelect = document.getElementById('model-select');
+
+            // 添加消息行
+            function addMessageRow() {
+                const index = document.querySelectorAll('.message-row').length;
+                const messageRow = document.createElement('div');
+                messageRow.className = 'message-row';
+                messageRow.dataset.index = index;
+                
+                messageRow.innerHTML = `
+                    <div class="message-role">
+                        <select class="role-select">
+                            <option value="system">system</option>
+                            <option value="user" selected>user</option>
+                            <option value="assistant">assistant</option>
+                        </select>
+                    </div>
+                    <div class="message-content">
+                        <textarea class="content-textarea" placeholder="输入消息内容..."></textarea>
+                    </div>
+                    <div class="message-actions">
+                        <button class="btn-icon btn-add" title="添加消息"><i class="fas fa-plus"></i>+</button>
+                        <button class="btn-icon btn-remove" title="删除消息"><i class="fas fa-trash"></i>-</button>
+                    </div>
+                `;
+                
+                messageContainer.appendChild(messageRow);
+                setupMessageRowEvents(messageRow);
+            }
+
+            // 删除消息行
+            function removeMessageRow(row) {
+                if (document.querySelectorAll('.message-row').length > 1) {
+                    row.remove();
+                    // 重新排序索引
+                    document.querySelectorAll('.message-row').forEach((row, index) => {
+                        row.dataset.index = index;
+                    });
+                } else {
+                    showError('至少需要保留一条消息');
+                }
+            }
+
+            // 设置消息行事件
+            function setupMessageRowEvents(row) {
+                const addBtn = row.querySelector('.btn-add');
+                const removeBtn = row.querySelector('.btn-remove');
+                
+                addBtn.addEventListener('click', function() {
+                    addMessageRow();
+                });
+                
+                removeBtn.addEventListener('click', function() {
+                    removeMessageRow(row);
+                });
+            }
+
+            // 收集所有消息
+            function collectMessages() {
+                const messages = [];
+                document.querySelectorAll('.message-row').forEach(row => {
+                    const role = row.querySelector('.role-select').value;
+                    const content = row.querySelector('.content-textarea').value.trim();
+                    
+                    if (content) {
+                        messages.push({
+                            role: role,
+                            content: content
+                        });
+                    }
+                });
+                return messages;
+            }
+
+            // 显示错误信息
+            function showError(message) {
+                errorContainer.textContent = message;
+                errorContainer.style.display = 'block';
+                setTimeout(() => {
+                    errorContainer.style.display = 'none';
+                }, 5000);
+            }
+
+            // 计算Token
+            async function calculateTokens() {
+                const messages = collectMessages();
+                
+                if (messages.length === 0) {
+                    showError('请至少输入一条有效消息');
+                    return;
+                }
+                
+                const model = modelSelect.value;
+                
+                // 显示加载状态
+                loadingElement.style.display = 'block';
+                resultContainer.style.display = 'none';
+                
+                try {
+                    const response = await fetch('/api/tokenize', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            messages: messages,
+                            model: model
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        // 显示结果
+                        tokenCountElement.textContent = data.usage.prompt_tokens;
+                        tokenDetailsElement.innerHTML = `
+                            <p>模型: ${data.model}</p>
+                            <p>请求ID: ${data.request_id}</p>
+                            <p>创建时间: ${new Date(data.created * 1000).toLocaleString()}</p>
+                        `;
+                        resultContainer.style.display = 'block';
+                    } else {
+                        showError(`计算失败: ${data.error}`);
+                    }
+                } catch (error) {
+                    showError(`请求错误: ${error.message}`);
+                } finally {
+                    loadingElement.style.display = 'none';
+                }
+            }
+
+            // 清空所有输入
+            function clearAll() {
+                document.querySelectorAll('.message-row').forEach((row, index) => {
+                    if (index === 0) {
+                        row.querySelector('.role-select').value = 'user';
+                        row.querySelector('.content-textarea').value = '';
+                    } else {
+                        row.remove();
+                    }
+                });
+                resultContainer.style.display = 'none';
+            }
+
+            // 设置初始消息行事件
+            document.querySelectorAll('.message-row').forEach(row => {
+                setupMessageRowEvents(row);
+            });
+
+            // 按钮事件
+            tokenizeBtn.addEventListener('click', calculateTokens);
+            clearBtn.addEventListener('click', clearAll);
+        });
+    </script>
+</body>
+</html>
