@@ -1,247 +1,296 @@
-# AI文本转语音转换器
+# AI Image Generator - 智谱CogView-4图像生成器
 
-基于智谱AI CogTTS模型的高质量文本转语音工具，支持多种语音类型和音频格式的语音合成功能。
+基于智谱AI CogView-4系列模型的高质量图像生成系统，支持多种生成模式和丰富的自定义选项。
 
-## 🌟 主要功能
+## ✨ 主要特性
 
-### 语音合成支持
-- **文本转语音**: 支持中文文本的高质量语音合成
-- **多种语音**: 提供5种不同风格的语音选择
-- **批量处理**: 支持多个文本的批量转换
-- **实时合成**: 快速准确的语音生成
-
-### 高级功能
-- **多种语音**: 童童语音风格
-- **格式支持**: 支持WAV音频格式输出
-- **文本验证**: 自动检测文本长度和内容有效性
-- **文件管理**: 自动保存和管理生成的音频文件
-
-### MCP服务器支持
-- **MCP工具集成**: 提供完整的MCP工具接口
-- **批量转换**: 支持批量文本转语音处理
-- **文件管理**: 音频文件信息查询和管理
-- **API测试**: 内置API连接测试功能
+- 🎨 **高质量图像生成**: 基于智谱CogView-4系列模型
+- 🔧 **多模型支持**: CogView-4、CogView-4-250304、CogView-3-Flash
+- 📐 **多种尺寸选择**: 支持1024x1024、1024x768、768x1024等多种尺寸
+- 🎯 **质量控制**: 标准质量和高清质量选项
+- 🌐 **Web界面**: 现代化的响应式Web界面
+- 🔌 **MCP服务器**: 支持Model Context Protocol
+- 📦 **批量生成**: 支持批量图像生成
+- 💾 **自动保存**: 自动下载并保存生成的图像
 
 ## 🚀 快速开始
 
-### 1. 安装依赖
+### 环境要求
+
+- Python 3.8+
+- 智谱AI API密钥
+
+### 安装依赖
 
 ```bash
-pip install flask requests pathlib uvicorn fastapi
+# 使用uv安装依赖（推荐）
+uv sync
+
+# 或使用pip安装
+pip install -r requirements.txt
 ```
 
-### 2. 配置API密钥
+### 配置API密钥
 
-设置智谱API密钥环境变量：
+创建 `config.json` 文件：
+
+```json
+{
+  "api_keys": {
+    "zhipu": "your_zhipu_api_key_here"
+  }
+}
+```
+
+或设置环境变量：
 
 ```bash
-export ZHIPU_API_KEY=你的智谱API密钥
+export ZHIPU_API_KEY="your_zhipu_api_key_here"
+```
+### MCP配置
+{
+  "mcpServers":{
+    "mcp-image-generator": {
+      "disabled": false,
+      "timeout": 60,
+      "type": "sse",
+      "url": "http://127.0.0.1:8000/sse"
+    }
+  }
+}
+
+### 运行方式
+
+#### 1. Web界面模式（推荐）
+
+```bash
+python image_server.py
 ```
 
-或在代码中直接配置：
+然后访问 http://localhost:5000
 
-```python
-from zhipu_tts_client import ZhipuTTSClient
-client = ZhipuTTSClient(api_key="你的智谱API密钥")
-```
-
-### 3. 启动MCP服务器
+#### 2. 交互式命令行模式
 
 ```bash
 python main.py
 ```
 
-选择启动模式：
-- **交互模式**: 命令行交互界面
-- **Web界面模式**: 提供友好的Web界面
-- **MCP服务器模式**: 作为MCP服务器运行
-- **运行测试**: 测试功能是否正常
+#### 3. MCP服务器模式
 
-### 4. MCP配置
+```bash
+python main.py --mcp
+```
 
-在MCP客户端中添加以下配置：
+## 🎯 支持的模型
+
+| 模型 | 描述 | 特点 |
+|------|------|------|
+| cogview-4 | CogView-4最新模型 | 高质量输出，推荐使用 |
+| cogview-4-250304 | CogView-4优化版本 | 更快的生成速度 |
+| cogview-3-flash | CogView-3快速模型 | 快速生成，适合批量处理 |
+
+## 📐 支持的图像尺寸
+
+- **1024x1024** - 正方形（推荐）
+- **1024x768** - 横向
+- **768x1024** - 纵向
+- **768x768** - 中等正方形
+- **512x512** - 小尺寸
+
+## 🎨 使用示例
+
+### Python API调用
+
+```python
+from zhipu_image_client import ZhipuImageClient
+
+# 初始化客户端
+client = ZhipuImageClient()
+
+# 生成图像
+result = client.generate_and_save_image(
+    prompt="一只可爱的柯基犬在樱花树下奔跑",
+    model="cogview-4",
+    size="1024x1024",
+    quality="standard"
+)
+
+if result["success"]:
+    print(f"图像已保存到: {result['file_path']}")
+    print(f"图像URL: {result['image_url']}")
+else:
+    print(f"生成失败: {result['error']}")
+```
+
+### 批量生成
+
+```python
+# 批量生成多张图像
+prompts = [
+    "一只橘猫在阳光下打盹",
+    "未来科技城市夜景",
+    "水彩画风格的山水画"
+]
+
+result = client.batch_generate_images(
+    prompts=prompts,
+    model="cogview-4",
+    size="1024x1024"
+)
+
+print(f"成功生成: {result['successful']}/{result['total']} 张图像")
+```
+
+### MCP工具调用
+
+```python
+# 生成图像
+generate_image_from_prompt(
+    prompt="一朵红色的玫瑰花",
+    model="cogview-4",
+    size="1024x1024",
+    quality="hd",
+    save_file=True
+)
+
+# 批量生成
+batch_generate_images(
+    prompts=["猫咪", "狗狗", "兔子"],
+    model="cogview-3-flash",
+    size="512x512"
+)
+
+# 获取支持的选项
+get_supported_options()
+
+# 测试API连接
+test_image_api("测试图像")
+```
+
+## 🌐 Web界面功能
+
+- **智能提示词输入**: 支持多行文本输入和示例提示词
+- **参数配置**: 可视化选择模型、尺寸和质量
+- **实时预览**: 生成后立即显示图像
+- **历史记录**: 保存最近的生成历史
+- **下载功能**: 一键下载生成的图像
+- **API状态监控**: 实时显示API连接状态
+
+## 📁 项目结构
+
+```
+AI-Image-Generator/
+├── main.py                 # 主程序入口
+├── zhipu_image_client.py   # 智谱图像生成客户端
+├── image_server.py         # Web服务器
+├── image_interface.html    # Web界面
+├── network_diagnostic.py   # 网络诊断工具
+├── config.json            # 配置文件
+├── outputs/               # 输出目录
+└── docs/                  # 文档目录
+```
+
+## 🔧 配置选项
+
+### API配置
+
 ```json
 {
-    "mcpServers": {
-        "ai-text-to-speech": {
-            "disabled": false,
-            "timeout": 60,
-            "type": "sse",
-            "url": "http://127.0.0.1:8000/sse"
-        }
-    }
+  "api_keys": {
+    "zhipu": "your_api_key"
+  },
+  "api_settings": {
+    "timeout": 120,
+    "max_retries": 3,
+    "base_url": "https://open.bigmodel.cn/api/paas/v4/images/generations"
+  }
 }
 ```
 
-## 🎭 支持的语音类型
+### 生成参数
 
-- **tongtong**: 童童 - 女声，温柔甜美
-- **xiaoxiao**: 小小 - 女声，活泼可爱
-- **xiaomo**: 小墨 - 男声，沉稳磁性
-- **xiaobei**: 小贝 - 女声，知性优雅
-- **xiaoxuan**: 小轩 - 男声，阳光帅气
+- **prompt**: 图像描述提示词（必需）
+- **model**: 生成模型（默认: cogview-4）
+- **size**: 图像尺寸（默认: 1024x1024）
+- **quality**: 图像质量（默认: standard）
 
-## 📁 支持的音频格式
+## 🛠️ 开发指南
 
-- **WAV**: 无损音质，适合高质量需求
-- **MP3**: 压缩格式，文件较小
+### 添加新模型
 
-## 🛠️ MCP工具
+1. 在 `zhipu_image_client.py` 中更新 `image_models` 字典
+2. 确保API支持新模型
+3. 更新Web界面的模型选项
 
-项目提供以下MCP工具：
+### 自定义输出格式
 
-### 文本转语音工具
-- `convert_text_to_speech`: 转换文本为语音
-- `batch_text_to_speech`: 批量文本转语音
-- `get_voice_types`: 获取可用语音类型
-- `validate_text_input`: 验证文本输入
-- `test_tts_api`: 测试API连接
-
-### 文件管理工具
-- `save_text_content`: 保存文本内容
-- `list_generated_files`: 列出生成的文件
-- `get_audio_file_info`: 获取音频文件信息
-- `get_supported_options`: 获取支持的选项
-
-## 📊 使用示例
-
-### 基本文本转语音
 ```python
-from zhipu_tts_client import ZhipuTTSClient
-
-client = ZhipuTTSClient()
-result = client.text_to_speech_file(
-    text="你好，这是一个测试。",
-    voice="tongtong",
-    response_format="wav"
-)
-print(f"音频文件: {result['file_path']}")
+# 修改保存格式
+def save_custom_format(self, image_data, filename, format="png"):
+    # 自定义保存逻辑
+    pass
 ```
 
-### 选择不同语音类型
-```python
-result = client.text_to_speech_file(
-    text="欢迎使用文本转语音功能。",
-    voice="xiaobei",  # 知性优雅的女声
-    response_format="mp3"
-)
-```
-
-### 批量转换
-```python
-texts = [
-    "这是第一段文本。",
-    "这是第二段文本。",
-    "这是第三段文本。"
-]
-result = client.batch_text_to_speech(
-    texts=texts,
-    voice="xiaomo",  # 沉稳磁性的男声
-    response_format="wav"
-)
-print(f"成功: {result['successful']}, 失败: {result['failed']}")
-```
-
-### MCP工具使用示例
-```python
-# 使用MCP工具转换文本
-result = use_mcp_tool(
-    server_name="mcp-text-to-speech",
-    tool_name="convert_text_to_speech",
-    arguments={
-        "text": "基于智谱AI CogTTS模型的高质量文本转语音工具",
-        "voice": "tongtong",
-        "response_format": "wav",
-        "save_file": True
-    }
-)
-```
-
-## 🔍 测试功能
-
-运行测试脚本验证功能：
-
-```bash
-python test_tts.py
-```
-
-测试包括：
-- API连接测试
-- 基本文本转语音功能
-- 不同语音类型测试
-- 不同音频格式测试
-- 批量转换测试
-- 文本验证测试
-- 长文本转换测试
-
-## 📝 项目结构
-
-```
-├── main.py                     # MCP服务器主文件
-├── zhipu_tts_client.py         # 智谱文本转语音客户端
-├── tts_server.py               # Web服务器
-├── tts_interface.html          # Web界面
-├── test_tts.py                 # 测试脚本
-├── network_diagnostic.py       # 网络诊断工具
-├── pyproject.toml              # 项目配置
-├── uv.lock                     # 依赖锁定文件
-├── docs/
-│   └── tasks.md               # 任务进度
-├── outputs/                   # 输出文件目录
-│   ├── demo_output.wav        # 示例输出文件
-│   └── tts_*.wav             # 生成的音频文件
-└── README.md                  # 项目文档
-```
-
-## 🚨 注意事项
-
-1. **API密钥**: 确保正确设置ZHIPU_API_KEY环境变量
-2. **文本长度**: 单次转换文本建议不超过5000字符
-3. **网络连接**: 需要稳定的网络连接访问智谱API
-4. **存储空间**: 确保有足够的磁盘空间存储生成的音频文件
-5. **编码问题**: 确保文本使用UTF-8编码
-
-## 🔧 故障排除
+## 🔍 故障排除
 
 ### 常见问题
 
 1. **API密钥错误**
-   - 检查ZHIPU_API_KEY环境变量是否正确设置
-   - 确认密钥有文本转语音API访问权限
+   - 检查config.json中的API密钥
+   - 确认环境变量ZHIPU_API_KEY设置正确
 
-2. **文本转换失败**
-   - 检查文本长度是否超过限制
-   - 确认文本内容是否有效
-   - 检查语音类型参数是否正确
+2. **网络连接问题**
+   - 运行网络诊断: `python network_diagnostic.py`
+   - 检查防火墙和代理设置
 
-3. **网络连接问题**
-   - 检查网络连接
-   - 查看控制台错误信息
-   - 尝试使用网络诊断工具
+3. **图像生成失败**
+   - 检查提示词是否包含敏感内容
+   - 尝试使用不同的模型或参数
 
-4. **依赖包缺失**
-   ```bash
-   pip install flask requests pathlib uvicorn fastapi
-   ```
+4. **Web界面无法访问**
+   - 确认端口5000未被占用
+   - 检查防火墙设置
 
-5. **编码问题**
-   - 确保文本使用UTF-8编码
-   - 检查系统环境变量设置
+### 调试模式
 
-## 📈 更新日志
+```bash
+# 启用详细日志
+export LOG_LEVEL=DEBUG
+python main.py
+```
 
-- v4.0.0: 改造为文本转语音转换器
-  - 支持多种语音类型和风格
-  - 新增批量文本转语音功能
-  - 集成智谱CogTTS模型
-  - 提供完整的MCP服务器功能
-  - 支持WAV和MP3音频格式
-  - 优化错误处理和编码支持
+## 📊 性能优化
 
-## 🤝 贡献
+- 使用 `cogview-3-flash` 模型获得更快的生成速度
+- 批量生成时适当增加延迟避免API限制
+- 选择合适的图像尺寸平衡质量和速度
 
-欢迎提交Issue和Pull Request来改进项目！
+## 🤝 贡献指南
+
+1. Fork 项目
+2. 创建功能分支
+3. 提交更改
+4. 推送到分支
+5. 创建Pull Request
 
 ## 📄 许可证
 
 MIT License
+
+## 🙏 致谢
+
+- 智谱AI提供的CogView-4模型
+- Flask和相关Web框架
+- 所有贡献者和用户
+
+## 📞 支持
+
+如有问题或建议，请：
+
+1. 查看文档和FAQ
+2. 提交Issue
+3. 联系开发团队
+
+---
+
+**享受AI图像生成的乐趣！** 🎨✨
