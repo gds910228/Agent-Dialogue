@@ -1,8 +1,8 @@
 """
-AI Multimodal Content Analyzer - Main Entry Point
+AI Speech-to-Text Converter - Main Entry Point
 
-A comprehensive AI content analysis system supporting multimodal inputs (text, images, videos, documents).
-Provides both MCP server capabilities and direct vision reasoning functionality.
+A comprehensive AI speech recognition system supporting multiple audio formats.
+Provides both MCP server capabilities and direct speech-to-text functionality.
 """
 
 import os
@@ -14,274 +14,232 @@ import asyncio
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from mcp.server.fastmcp import FastMCP
-from zhipu_vision_client import ZhipuVisionClient
+from zhipu_speech_client import ZhipuSpeechClient
+from network_diagnostic import NetworkDiagnostic
 
 # Create an MCP server
-mcp = FastMCP("AI Multimodal Content Analyzer")
+mcp = FastMCP("AI Speech-to-Text Converter")
 
 # Create directories for storing files
 UPLOADS_DIR = Path("uploads")
 UPLOADS_DIR.mkdir(exist_ok=True)
 
 # Initialize clients
-vision_client = ZhipuVisionClient()
+speech_client = ZhipuSpeechClient()
 
-# Vision Reasoning Entry Point
-class VisionReasoning:
-    """主要的视觉推理入口类"""
+# Speech Recognition Entry Point
+class SpeechRecognition:
+    """主要的语音识别入口类"""
     
     def __init__(self):
-        self.vision_client = vision_client
+        self.speech_client = speech_client
         self.uploads_dir = UPLOADS_DIR
         
-    def analyze_content(self, 
-                       text: str = "",
-                       files: List[str] = None,
-                       urls: List[str] = None,
-                       model: str = "glm-4v") -> Dict[str, Any]:
+    
+    
+    def transcribe_audio(self, 
+                        audio_path: str,
+                        model: str = "glm-asr",
+                        language: Optional[str] = None,
+                        prompt: Optional[str] = None) -> Dict[str, Any]:
         """
-        主要的内容分析入口
+        主要的语音转文本入口
         
         Args:
-            text: 文本内容或问题
-            files: 文件路径列表
-            urls: URL列表
-            model: 使用的模型
+            audio_path: 音频文件路径
+            model: 使用的模型 (glm-asr)
+            language: 音频语言
+            prompt: 提示词
             
         Returns:
-            分析结果
+            转录结果
         """
-        return self.vision_client.analyze_multimodal_content(
-            text=text,
-            files=files or [],
-            urls=urls or [],
-            model=model
+        return self.speech_client.transcribe_audio(
+            audio_path=audio_path,
+            model=model,
+            language=language,
+            prompt=prompt
         )
     
-    def process_image(self, image_path: str, question: str = "请描述这张图片") -> Dict[str, Any]:
-        """处理图片"""
-        return self.vision_client.describe_image(image_path, question)
+    def transcribe_with_timestamps(self, audio_path: str, model: str = "glm-asr") -> Dict[str, Any]:
+        """带时间戳的语音转文本"""
+        return self.speech_client.transcribe_with_timestamps(audio_path, model)
     
-    def process_video(self, video_path: str, question: str = "请分析这个视频") -> Dict[str, Any]:
-        """处理视频"""
-        return self.vision_client.analyze_video(video_path, question)
+    def transcribe_to_srt(self, audio_path: str, model: str = "glm-asr") -> Dict[str, Any]:
+        """转录为SRT字幕格式"""
+        return self.speech_client.transcribe_to_srt(audio_path, model)
     
-    def process_document(self, doc_path: str, question: str = "请总结文档内容") -> Dict[str, Any]:
-        """处理文档"""
-        return self.vision_client.extract_document_info(doc_path, question)
-    
-    def compare_contents(self, file_paths: List[str], question: str = "请比较这些内容") -> Dict[str, Any]:
-        """比较多个内容"""
-        return self.vision_client.compare_contents(file_paths, question)
+    def batch_transcribe(self, audio_files: List[str], model: str = "glm-asr") -> Dict[str, Any]:
+        """批量语音转文本"""
+        return self.speech_client.batch_transcribe(audio_files, model)
 
-# 创建全局视觉推理实例
-vision_reasoning = VisionReasoning()
+# 创建全局语音识别实例
+speech_recognition = SpeechRecognition()
 
 @mcp.tool()
-def analyze_multimodal_content(
-    text: str = "",
-    file_paths: List[str] = None,
-    urls: List[str] = None,
-    model: str = "glm-4v",
-    question: str = ""
+@mcp.tool()
+def transcribe_audio_file(
+    audio_path: str,
+    model: str = "glm-asr",
+    language: Optional[str] = None,
+    prompt: Optional[str] = None,
+    response_format: str = "json"
 ) -> Dict[str, Any]:
     """
-    Analyze multimodal content including text, images, videos, and documents.
+    Transcribe audio file to text using Zhipu's speech-to-text API.
     
     Args:
-        text: Text content or description
-        file_paths: List of local file paths to analyze
-        urls: List of URLs to analyze
-        model: Vision model to use (glm-4v, glm-4v-plus)
-        question: Specific question about the content
+        audio_path: Path to the audio file (.wav/.mp3, ≤25MB, ≤60s)
+        model: Speech recognition model to use (glm-asr)
+        language: Language of the audio (optional, e.g., 'zh', 'en')
+        prompt: Optional prompt to guide the transcription
+        response_format: Response format (json, text, srt, verbose_json, vtt)
     
     Returns:
-        Dictionary with analysis results
+        Dictionary with transcription results
     """
     try:
-        if not text and not file_paths and not urls:
+        if not audio_path:
             return {
                 "success": False,
-                "error": "At least one type of content must be provided"
+                "error": "Audio path cannot be empty"
             }
         
-        # Combine text and question
-        combined_text = f"{text} {question}".strip() if question else text
+        # Check if file exists
+        path = Path(audio_path)
+        if not path.exists():
+            # Try relative to uploads directory
+            upload_path = UPLOADS_DIR / path.name
+            if upload_path.exists():
+                audio_path = str(upload_path)
+            else:
+                return {
+                    "success": False,
+                    "error": f"Audio file not found: {audio_path}"
+                }
         
-        # Validate file paths
-        valid_files = []
-        if file_paths:
-            for file_path in file_paths:
-                path = Path(file_path)
-                if path.exists():
-                    valid_files.append(str(path))
-                else:
-                    # Try relative to uploads directory
-                    upload_path = UPLOADS_DIR / path.name
-                    if upload_path.exists():
-                        valid_files.append(str(upload_path))
-        
-        result = vision_reasoning.analyze_content(
-            text=combined_text,
-            files=valid_files,
-            urls=urls or [],
-            model=model
+        result = speech_recognition.speech_client.transcribe_audio(
+            audio_path=audio_path,
+            model=model,
+            language=language,
+            prompt=prompt,
+            response_format=response_format
         )
-        
         return result
         
     except Exception as e:
         return {
             "success": False,
-            "error": f"Multimodal analysis failed: {str(e)}"
+            "error": f"Audio transcription failed: {str(e)}"
         }
 
 @mcp.tool()
-def describe_image(image_path: str, question: str = "请描述这张图片的内容") -> Dict[str, Any]:
+def transcribe_with_timestamps(audio_path: str, model: str = "whisper-1") -> Dict[str, Any]:
     """
-    Describe the content of an image.
+    Transcribe audio with detailed timestamps and segments.
     
     Args:
-        image_path: Path to the image file
-        question: Specific question about the image
+        audio_path: Path to the audio file
+        model: Speech recognition model to use
     
     Returns:
-        Dictionary with image description
+        Dictionary with detailed transcription results including timestamps
     """
     try:
-        if not image_path:
+        if not audio_path:
             return {
                 "success": False,
-                "error": "Image path cannot be empty"
+                "error": "Audio path cannot be empty"
             }
         
         # Check if file exists
-        path = Path(image_path)
+        path = Path(audio_path)
         if not path.exists():
             # Try relative to uploads directory
             upload_path = UPLOADS_DIR / path.name
             if upload_path.exists():
-                image_path = str(upload_path)
+                audio_path = str(upload_path)
             else:
                 return {
                     "success": False,
-                    "error": f"Image file not found: {image_path}"
+                    "error": f"Audio file not found: {audio_path}"
                 }
         
-        result = vision_reasoning.process_image(image_path, question)
+        result = speech_recognition.transcribe_with_timestamps(audio_path, model)
         return result
         
     except Exception as e:
         return {
             "success": False,
-            "error": f"Image description failed: {str(e)}"
+            "error": f"Timestamp transcription failed: {str(e)}"
         }
 
 @mcp.tool()
-def analyze_video_content(video_path: str, question: str = "请分析这个视频的内容") -> Dict[str, Any]:
+@mcp.tool()
+def transcribe_to_srt(audio_path: str, model: str = "glm-asr") -> Dict[str, Any]:
     """
-    Analyze video content using vision model.
+    Transcribe audio to SRT subtitle format.
     
     Args:
-        video_path: Path to the video file
-        question: Specific question about the video
+        audio_path: Path to the audio file (.wav/.mp3, ≤25MB, ≤60s)
+        model: Speech recognition model to use (glm-asr)
     
     Returns:
-        Dictionary with video analysis results
+        Dictionary with SRT format transcription
     """
     try:
-        if not video_path:
+        if not audio_path:
             return {
                 "success": False,
-                "error": "Video path cannot be empty"
+                "error": "Audio path cannot be empty"
             }
         
         # Check if file exists
-        path = Path(video_path)
+        path = Path(audio_path)
         if not path.exists():
             # Try relative to uploads directory
             upload_path = UPLOADS_DIR / path.name
             if upload_path.exists():
-                video_path = str(upload_path)
+                audio_path = str(upload_path)
             else:
                 return {
                     "success": False,
-                    "error": f"Video file not found: {video_path}"
+                    "error": f"Audio file not found: {audio_path}"
                 }
         
-        result = vision_reasoning.process_video(video_path, question)
+        result = speech_recognition.transcribe_to_srt(audio_path, model)
         return result
         
     except Exception as e:
         return {
             "success": False,
-            "error": f"Video analysis failed: {str(e)}"
+            "error": f"SRT transcription failed: {str(e)}"
         }
 
 @mcp.tool()
-def extract_document_content(document_path: str, question: str = "请总结这个文档的主要内容") -> Dict[str, Any]:
-    """
-    Extract and analyze document content.
-    
-    Args:
-        document_path: Path to the document file
-        question: Specific question about the document
-    
-    Returns:
-        Dictionary with document analysis results
-    """
-    try:
-        if not document_path:
-            return {
-                "success": False,
-                "error": "Document path cannot be empty"
-            }
-        
-        # Check if file exists
-        path = Path(document_path)
-        if not path.exists():
-            # Try relative to uploads directory
-            upload_path = UPLOADS_DIR / path.name
-            if upload_path.exists():
-                document_path = str(upload_path)
-            else:
-                return {
-                    "success": False,
-                    "error": f"Document file not found: {document_path}"
-                }
-        
-        result = vision_reasoning.process_document(document_path, question)
-        return result
-        
-    except Exception as e:
-        return {
-            "success": False,
-            "error": f"Document extraction failed: {str(e)}"
-        }
-
 @mcp.tool()
-def compare_multiple_contents(file_paths: List[str], question: str = "请比较这些内容的异同") -> Dict[str, Any]:
+def batch_transcribe_audio(audio_files: List[str], model: str = "glm-asr") -> Dict[str, Any]:
     """
-    Compare multiple files or contents.
+    Batch transcribe multiple audio files.
     
     Args:
-        file_paths: List of file paths to compare
-        question: Specific question about the comparison
+        audio_files: List of audio file paths (.wav/.mp3, ≤25MB, ≤60s each)
+        model: Speech recognition model to use (glm-asr)
     
     Returns:
-        Dictionary with comparison results
+        Dictionary with batch transcription results
     """
     try:
-        if not file_paths or len(file_paths) < 2:
+        if not audio_files:
             return {
                 "success": False,
-                "error": "At least two files are required for comparison"
+                "error": "Audio files list cannot be empty"
             }
         
         # Validate file paths
         valid_files = []
-        for file_path in file_paths:
-            path = Path(file_path)
+        for audio_path in audio_files:
+            path = Path(audio_path)
             if path.exists():
                 valid_files.append(str(path))
             else:
@@ -290,25 +248,125 @@ def compare_multiple_contents(file_paths: List[str], question: str = "请比较�
                 if upload_path.exists():
                     valid_files.append(str(upload_path))
         
-        if len(valid_files) < 2:
+        if not valid_files:
             return {
                 "success": False,
-                "error": "At least two valid files are required for comparison"
+                "error": "No valid audio files found"
             }
         
-        result = vision_reasoning.compare_contents(valid_files, question)
+        result = speech_recognition.batch_transcribe(valid_files, model)
         return result
         
     except Exception as e:
         return {
             "success": False,
-            "error": f"Content comparison failed: {str(e)}"
+            "error": f"Batch transcription failed: {str(e)}"
+        }
+
+@mcp.tool()
+def get_audio_info(audio_path: str) -> Dict[str, Any]:
+    """
+    Get information about an audio file.
+    
+    Args:
+        audio_path: Path to the audio file
+    
+    Returns:
+        Dictionary with audio file information
+    """
+    try:
+        if not audio_path:
+            return {
+                "success": False,
+                "error": "Audio path cannot be empty"
+            }
+        
+        # Check if file exists
+        path = Path(audio_path)
+        if not path.exists():
+            # Try relative to uploads directory
+            upload_path = UPLOADS_DIR / path.name
+            if upload_path.exists():
+                path = upload_path
+            else:
+                return {
+                    "success": False,
+                    "error": f"Audio file not found: {audio_path}"
+                }
+        
+        # Get file information
+        file_size = path.stat().st_size
+        file_ext = path.suffix.lower()
+        
+        # Validate audio format
+        validation = speech_client._validate_audio_file(str(path))
+        
+        return {
+            "success": True,
+            "filename": path.name,
+            "path": str(path),
+            "size": file_size,
+            "size_mb": round(file_size / 1024 / 1024, 2),
+            "format": file_ext,
+            "validation": validation,
+            "supported": validation["valid"]
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"Failed to get audio info: {str(e)}"
+        }
+
+@mcp.tool()
+def test_speech_api(test_file: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Test the speech-to-text API connection and functionality.
+    
+    Args:
+        test_file: Optional path to a test audio file
+    
+    Returns:
+        Dictionary with test results
+    """
+    try:
+        # Test API connection
+        connection_test = speech_client.test_connection()
+        
+        result = {
+            "success": True,
+            "connection_test": connection_test,
+            "supported_formats": speech_client.get_supported_formats(),
+            "available_models": list(speech_client.speech_models.keys())
+        }
+        
+        # If test file provided, try transcription
+        if test_file:
+            path = Path(test_file)
+            if path.exists() or (UPLOADS_DIR / path.name).exists():
+                if not path.exists():
+                    path = UPLOADS_DIR / path.name
+                
+                transcription_test = speech_client.transcribe_audio(str(path))
+                result["transcription_test"] = transcription_test
+            else:
+                result["transcription_test"] = {
+                    "success": False,
+                    "error": f"Test file not found: {test_file}"
+                }
+        
+        return result
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"API test failed: {str(e)}"
         }
 
 @mcp.tool()
 def upload_file(file_content: str, filename: str, encoding: str = "base64") -> Dict[str, Any]:
     """
-    Upload a file to the server for analysis.
+    Upload an audio file to the server for transcription.
     
     Args:
         file_content: File content (base64 encoded or text)
@@ -365,17 +423,19 @@ def upload_file(file_content: str, filename: str, encoding: str = "base64") -> D
 @mcp.tool()
 def get_supported_formats() -> Dict[str, Any]:
     """
-    Get list of supported file formats for multimodal analysis.
+    Get list of supported audio formats for speech-to-text conversion.
     
     Returns:
         Dictionary with supported formats
     """
     try:
-        formats = vision_client.get_supported_formats()
+        formats = speech_client.get_supported_formats()
+        models = speech_client.get_model_info()
         return {
             "success": True,
             "formats": formats,
-            "models": list(vision_client.vision_models.keys())
+            "models": list(models.keys()),
+            "model_details": models
         }
     except Exception as e:
         return {
@@ -386,7 +446,7 @@ def get_supported_formats() -> Dict[str, Any]:
 @mcp.tool()
 def list_uploaded_files() -> Dict[str, Any]:
     """
-    List all uploaded files available for analysis.
+    List all uploaded audio files available for transcription.
     
     Returns:
         Dictionary with file list
@@ -419,49 +479,55 @@ def list_uploaded_files() -> Dict[str, Any]:
         }
 
 def run_interactive_mode():
-    """运行交互式视觉推理模式"""
+    """运行交互式语音转文本模式"""
     print("=" * 60)
-    print("🧠 AI多模态内容分析器 - 视觉推理模式")
+    print("🎤 AI语音转文本转换器 - 交互模式")
     print("=" * 60)
     print("支持的功能:")
-    print("1. 图片分析")
-    print("2. 视频分析") 
-    print("3. 文档分析")
-    print("4. 多内容比较")
-    print("5. 自定义多模态分析")
-    print("6. 启动MCP服务器")
-    print("7. 启动Web服务器")
+    print("1. 语音转文本")
+    print("2. 带时间戳转录")
+    print("3. 生成SRT字幕")
+    print("4. 批量转录")
+    print("5. 查看音频信息")
+    print("6. 测试API连接")
+    print("7. 网络诊断")
+    print("8. 启动MCP服务器")
+    print("9. 启动Web服务器")
     print("0. 退出")
     print("=" * 60)
     
     while True:
         try:
-            choice = input("\n请选择功能 (0-7): ").strip()
+            choice = input("\n请选择功能 (0-9): ").strip()
             
             if choice == "0":
                 print("👋 再见!")
                 break
             elif choice == "1":
-                handle_image_analysis()
+                handle_audio_transcription()
             elif choice == "2":
-                handle_video_analysis()
+                handle_timestamp_transcription()
             elif choice == "3":
-                handle_document_analysis()
+                handle_srt_generation()
             elif choice == "4":
-                handle_content_comparison()
+                handle_batch_transcription()
             elif choice == "5":
-                handle_custom_analysis()
+                handle_audio_info()
             elif choice == "6":
+                handle_api_test()
+            elif choice == "7":
+                handle_network_diagnostic()
+            elif choice == "8":
                 print("🔧 启动MCP服务器...")
                 mcp.run(transport="sse")
                 break
-            elif choice == "7":
+            elif choice == "9":
                 print("🌐 启动Web服务器...")
                 import subprocess
-                subprocess.run([sys.executable, "multimodal_server.py"])
+                subprocess.run([sys.executable, "speech_server.py"])
                 break
             else:
-                print("❌ 无效选择，请输入0-7")
+                print("❌ 无效选择，请输入0-9")
                 
         except KeyboardInterrupt:
             print("\n👋 再见!")
@@ -469,136 +535,162 @@ def run_interactive_mode():
         except Exception as e:
             print(f"❌ 错误: {e}")
 
-def handle_image_analysis():
-    """处理图片分析"""
-    print("\n📸 图片分析")
-    image_path = input("请输入图片路径: ").strip()
-    if not image_path:
-        print("❌ 图片路径不能为空")
+def handle_audio_transcription():
+    """处理音频转录"""
+    print("\n🎤 语音转文本")
+    audio_path = input("请输入音频文件路径: ").strip()
+    if not audio_path:
+        print("❌ 音频路径不能为空")
         return
     
-    question = input("请输入问题 (回车使用默认): ").strip()
-    if not question:
-        question = "请详细描述这张图片的内容"
+    language = input("请输入音频语言 (可选，如zh/en): ").strip() or None
+    prompt = input("请输入提示词 (可选): ").strip() or None
     
-    print("🔍 分析中...")
-    result = vision_reasoning.process_image(image_path, question)
+    print("🔍 转录中...")
+    result = speech_recognition.transcribe_audio(audio_path, language=language, prompt=prompt)
     
     if result["success"]:
-        print(f"✅ 分析结果:\n{result['content']}")
+        print(f"✅ 转录结果:\n{result['text']}")
+        if result.get('language'):
+            print(f"检测到的语言: {result['language']}")
     else:
-        print(f"❌ 分析失败: {result['error']}")
+        print(f"❌ 转录失败: {result['error']}")
 
-def handle_video_analysis():
-    """处理视频分析"""
-    print("\n🎥 视频分析")
-    video_path = input("请输入视频路径: ").strip()
-    if not video_path:
-        print("❌ 视频路径不能为空")
+def handle_timestamp_transcription():
+    """处理带时间戳转录"""
+    print("\n⏰ 带时间戳转录")
+    audio_path = input("请输入音频文件路径: ").strip()
+    if not audio_path:
+        print("❌ 音频路径不能为空")
         return
     
-    question = input("请输入问题 (回车使用默认): ").strip()
-    if not question:
-        question = "请分析这个视频的内容"
-    
-    print("🔍 分析中...")
-    result = vision_reasoning.process_video(video_path, question)
+    print("🔍 转录中...")
+    result = speech_recognition.transcribe_with_timestamps(audio_path)
     
     if result["success"]:
-        print(f"✅ 分析结果:\n{result['content']}")
+        print(f"✅ 转录结果:\n{result['text']}")
+        if result.get('segments'):
+            print("\n时间戳信息:")
+            for segment in result['segments'][:5]:  # 只显示前5个片段
+                print(f"  {segment.get('start', 0):.2f}s - {segment.get('end', 0):.2f}s: {segment.get('text', '')}")
     else:
-        print(f"❌ 分析失败: {result['error']}")
+        print(f"❌ 转录失败: {result['error']}")
 
-def handle_document_analysis():
-    """处理文档分析"""
-    print("\n📄 文档分析")
-    doc_path = input("请输入文档路径: ").strip()
-    if not doc_path:
-        print("❌ 文档路径不能为空")
+def handle_srt_generation():
+    """处理SRT字幕生成"""
+    print("\n📝 生成SRT字幕")
+    audio_path = input("请输入音频文件路径: ").strip()
+    if not audio_path:
+        print("❌ 音频路径不能为空")
         return
     
-    question = input("请输入问题 (回车使用默认): ").strip()
-    if not question:
-        question = "请总结这个文档的主要内容"
-    
-    print("🔍 分析中...")
-    result = vision_reasoning.process_document(doc_path, question)
+    print("🔍 生成字幕中...")
+    result = speech_recognition.transcribe_to_srt(audio_path)
     
     if result["success"]:
-        print(f"✅ 分析结果:\n{result['content']}")
+        print("✅ SRT字幕生成成功!")
+        srt_content = result.get('srt_content', result.get('text', ''))
+        print("SRT内容预览:")
+        print(srt_content[:500] + "..." if len(srt_content) > 500 else srt_content)
+        
+        # 保存SRT文件
+        srt_path = Path(audio_path).with_suffix('.srt')
+        with open(srt_path, 'w', encoding='utf-8') as f:
+            f.write(srt_content)
+        print(f"SRT文件已保存到: {srt_path}")
     else:
-        print(f"❌ 分析失败: {result['error']}")
+        print(f"❌ 字幕生成失败: {result['error']}")
 
-def handle_content_comparison():
-    """处理内容比较"""
-    print("\n🔄 多内容比较")
-    print("请输入要比较的文件路径 (每行一个，空行结束):")
+def handle_batch_transcription():
+    """处理批量转录"""
+    print("\n📁 批量转录")
+    print("请输入音频文件路径 (每行一个，空行结束):")
     
-    file_paths = []
+    audio_files = []
     while True:
         path = input().strip()
         if not path:
             break
-        file_paths.append(path)
+        audio_files.append(path)
     
-    if len(file_paths) < 2:
-        print("❌ 至少需要两个文件进行比较")
+    if not audio_files:
+        print("❌ 没有输入任何文件")
         return
     
-    question = input("请输入比较问题 (回车使用默认): ").strip()
-    if not question:
-        question = "请比较这些内容的异同"
-    
-    print("🔍 比较中...")
-    result = vision_reasoning.compare_contents(file_paths, question)
+    print(f"🔍 批量转录 {len(audio_files)} 个文件...")
+    result = speech_recognition.batch_transcribe(audio_files)
     
     if result["success"]:
-        print(f"✅ 比较结果:\n{result['content']}")
+        print(f"✅ 批量转录完成!")
+        print(f"总计: {result['total']}, 成功: {result['successful']}, 失败: {result['failed']}")
+        
+        for item in result['results']:
+            file_result = item['result']
+            if file_result['success']:
+                print(f"✅ {item['file']}: {file_result['text'][:100]}...")
+            else:
+                print(f"❌ {item['file']}: {file_result['error']}")
     else:
-        print(f"❌ 比较失败: {result['error']}")
+        print(f"❌ 批量转录失败: {result['error']}")
 
-def handle_custom_analysis():
-    """处理自定义分析"""
-    print("\n🎯 自定义多模态分析")
-    
-    text = input("请输入文本内容 (可选): ").strip()
-    
-    print("请输入文件路径 (每行一个，空行结束):")
-    file_paths = []
-    while True:
-        path = input().strip()
-        if not path:
-            break
-        file_paths.append(path)
-    
-    print("请输入URL (每行一个，空行结束):")
-    urls = []
-    while True:
-        url = input().strip()
-        if not url:
-            break
-        urls.append(url)
-    
-    if not text and not file_paths and not urls:
-        print("❌ 至少需要提供一种类型的内容")
+def handle_audio_info():
+    """处理音频信息查看"""
+    print("\n📊 音频信息")
+    audio_path = input("请输入音频文件路径: ").strip()
+    if not audio_path:
+        print("❌ 音频路径不能为空")
         return
     
-    model = input("请选择模型 (glm-4v/glm-4v-plus，回车使用默认): ").strip()
-    if not model:
-        model = "glm-4v"
-    
-    print("🔍 分析中...")
-    result = vision_reasoning.analyze_content(
-        text=text,
-        files=file_paths if file_paths else [],
-        urls=urls if urls else [],
-        model=model
-    )
+    result = get_audio_info(audio_path)
     
     if result["success"]:
-        print(f"✅ 分析结果:\n{result['content']}")
+        print("✅ 音频信息:")
+        print(f"  文件名: {result['filename']}")
+        print(f"  大小: {result['size_mb']} MB")
+        print(f"  格式: {result['format']}")
+        print(f"  支持转录: {'是' if result['supported'] else '否'}")
+        if not result['supported']:
+            print(f"  错误: {result['validation']['error']}")
     else:
-        print(f"❌ 分析失败: {result['error']}")
+        print(f"❌ 获取信息失败: {result['error']}")
+
+def handle_api_test():
+    """处理API测试"""
+    print("\n🔧 API连接测试")
+    test_file = input("请输入测试音频文件路径 (可选): ").strip() or None
+    
+    print("🔍 测试中...")
+    result = test_speech_api(test_file)
+    
+    if result["success"]:
+        print("✅ API测试结果:")
+        print(f"  连接状态: {'正常' if result['connection_test']['success'] else '失败'}")
+        print(f"  可用模型: {', '.join(result['available_models'])}")
+        print(f"  支持格式: {result['supported_formats']}")
+        
+        if 'transcription_test' in result:
+            trans_result = result['transcription_test']
+            if trans_result['success']:
+                print(f"  测试转录: {trans_result['text'][:100]}...")
+            else:
+                print(f"  测试转录失败: {trans_result['error']}")
+    else:
+        print(f"❌ API测试失败: {result['error']}")
+
+def handle_network_diagnostic():
+    """处理网络诊断"""
+    print("\n🔍 网络诊断")
+    print("正在检查网络连接和API可达性...")
+    
+    try:
+        diagnostic = NetworkDiagnostic()
+        diagnostic.run_full_diagnostic()
+    except Exception as e:
+        print(f"❌ 网络诊断失败: {str(e)}")
+        print("💡 建议:")
+        print("  1. 检查网络连接")
+        print("  2. 确认API密钥配置正确")
+        print("  3. 尝试使用VPN或代理")
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
@@ -608,11 +700,11 @@ if __name__ == "__main__":
         elif sys.argv[1] == "--web":
             print("🌐 启动Web服务器模式...")
             import subprocess
-            subprocess.run([sys.executable, "multimodal_server.py"])
+            subprocess.run([sys.executable, "speech_server.py"])
         elif sys.argv[1] == "--test":
             print("🧪 运行测试...")
             import subprocess
-            subprocess.run([sys.executable, "test_multimodal.py"])
+            subprocess.run([sys.executable, "test_speech.py"])
         else:
             print("❌ 未知参数，支持的参数: --mcp, --web, --test")
     else:

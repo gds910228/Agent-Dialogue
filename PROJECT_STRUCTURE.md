@@ -3,16 +3,15 @@
 ## 核心文件
 
 ### 主要入口
-- **main.py** - 主要入口文件，支持交互式视觉推理和MCP服务器模式
-- **zhipu_vision_client.py** - 智谱视觉模型客户端，处理多模态内容分析
+- **main.py** - 主要入口文件，支持交互式语音转录和MCP服务器模式
+- **zhipu_speech_client.py** - 智谱语音转文本客户端，处理音频转录功能
 
 ### Web界面
-- **multimodal_server.py** - Web服务器，提供RESTful API
-- **multimodal_interface.html** - Web用户界面，支持拖拽上传和多模态分析
+- **speech_server.py** - Web服务器，提供RESTful API
+- **speech_interface.html** - Web用户界面，支持拖拽上传和语音转文本
 
 ### 工具和测试
-- **start_multimodal.py** - 启动脚本，提供多种启动选项
-- **test_multimodal.py** - 功能测试脚本
+- **test_speech.py** - 功能测试脚本
 
 ### 配置和文档
 - **config.json** - 配置文件，包含API密钥等设置
@@ -21,15 +20,15 @@
 
 ### 目录结构
 ```
-mcp13/
+AI-Speech-To-Text/
 ├── main.py                     # 主入口文件
-├── zhipu_vision_client.py      # 视觉模型客户端
-├── multimodal_server.py        # Web服务器
-├── multimodal_interface.html   # Web界面
-├── start_multimodal.py         # 启动脚本
-├── test_multimodal.py          # 测试脚本
+├── zhipu_speech_client.py      # 语音转文本客户端
+├── speech_server.py            # Web服务器
+├── speech_interface.html       # Web界面
+├── test_speech.py              # 测试脚本
 ├── config.json                 # 配置文件
 ├── README.md                   # 项目文档
+├── PROJECT_STRUCTURE.md        # 项目结构说明
 ├── pyproject.toml              # Python项目配置
 ├── uv.lock                     # 依赖锁定文件
 ├── docs/
@@ -39,10 +38,10 @@ mcp13/
 
 ## 功能模块
 
-### 1. 多模态内容分析
-- 支持文本、图片、视频、文档分析
-- 基于智谱GLM-4V视觉模型
-- 支持内容比较和问答
+### 1. 语音转文本
+- 支持多种音频和视频格式
+- 基于智谱Whisper模型
+- 支持批量处理和时间戳
 
 ### 2. 交互式界面
 - 命令行交互模式
@@ -52,7 +51,7 @@ mcp13/
 ### 3. MCP服务器
 - 提供MCP工具接口
 - 支持外部调用
-- 向后兼容
+- 语音转文本专用工具
 
 ## 使用方式
 
@@ -68,25 +67,63 @@ python main.py --web    # Web服务器模式
 python main.py --test   # 测试模式
 ```
 
-### 使用启动脚本
+### Web服务器
 ```bash
-python start_multimodal.py
+python speech_server.py
 ```
 
 ## 已清理的文件
 
-以下文件已从项目中移除：
-- main_backup.py
-- main_old.py
-- create_valid_video.py
-- example_usage.py
-- index.html
-- script.js
-- simple_web_server.py
-- video_status.html
-- web_server.py
-- ZHIPU_VIDEO_API.md
-- zhipu_client.py
-- generated_videos/ (目录)
+以下文件已从项目中移除或重构：
+- multimodal_server.py (保留但不再使用)
+- multimodal_interface.html (保留但不再使用)
+- start_multimodal.py (保留但不再使用)
+- test_multimodal.py (保留但不再使用)
+- zhipu_vision_client.py (保留但不再使用)
 
-项目现在专注于多模态内容分析功能，结构更加清晰简洁。
+项目现在专注于语音转文本功能，结构更加清晰简洁。
+
+## 核心技术
+
+### 智谱AI Whisper模型
+- 高精度语音识别
+- 多语言支持
+- 自动语言检测
+- 时间戳生成
+
+### Web技术栈
+- Flask Web框架
+- HTML5 + CSS3 + JavaScript
+- Tailwind CSS样式框架
+- Font Awesome图标库
+
+### MCP集成
+- FastMCP框架
+- SSE传输协议
+- 工具化API接口
+
+## 配置要求
+
+### 系统要求
+- Python 3.8+
+- 网络连接（访问智谱API）
+- 磁盘空间（存储上传文件）
+
+### 依赖包
+- flask: Web服务器
+- requests: HTTP请求
+- pathlib: 文件路径处理
+- mcp.server.fastmcp: MCP服务器框架
+
+### API配置
+- 智谱AI API密钥
+- 语音转文本API访问权限
+
+## 扩展性
+
+项目设计支持以下扩展：
+1. 添加更多语音模型
+2. 支持实时语音流转录
+3. 集成更多音频处理功能
+4. 添加语音质量评估
+5. 支持多用户并发处理
