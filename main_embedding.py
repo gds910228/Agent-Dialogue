@@ -24,21 +24,8 @@ mcp = FastMCP("AI Text Embedding Generator")
 OUTPUTS_DIR = Path("outputs")
 OUTPUTS_DIR.mkdir(exist_ok=True)
 
-# Load configuration
-def load_config():
-    """加载配置文件"""
-    config_path = "config.json"
-    if os.path.exists(config_path):
-        with open(config_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    return {}
-
-config = load_config()
-
 # Initialize clients
-api_key = config.get("zhipu_api_key") or os.getenv("ZHIPU_API_KEY")
-embedding_base_url = config.get("text_embedding", {}).get("base_url", "https://open.bigmodel.cn/api/paas/v4")
-embedding_client = ZhipuEmbeddingClient(api_key=api_key, base_url=embedding_base_url)
+embedding_client = ZhipuEmbeddingClient(api_key=os.getenv("ZHIPU_API_KEY"))
 
 # Text Embedding Entry Point
 class EmbeddingGenerator:

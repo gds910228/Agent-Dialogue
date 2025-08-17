@@ -1,17 +1,17 @@
-# AI Image Generator - 智谱CogView-4图像生成器
+# AI Text Embedding Generator - 智谱GLM文本嵌入生成器
 
-基于智谱AI CogView-4系列模型的高质量图像生成系统，支持多种生成模式和丰富的自定义选项。
+基于智谱AI GLM嵌入模型的高质量文本嵌入系统，将文本转换为高维向量表示，用于语义相似性和搜索。
 
 ## ✨ 主要特性
 
-- 🎨 **高质量图像生成**: 基于智谱CogView-4系列模型
-- 🔧 **多模型支持**: CogView-4、CogView-4-250304、CogView-3-Flash
-- 📐 **多种尺寸选择**: 支持1024x1024、1024x768、768x1024等多种尺寸
-- 🎯 **质量控制**: 标准质量和高清质量选项
+- 🔤 **文本嵌入生成**: 基于智谱GLM嵌入模型
+- 🔧 **多模型支持**: embedding-3、embedding-2
+- 🔍 **相似度计算**: 计算文本间的语义相似度
+- 🔎 **相似文本搜索**: 在候选文本中找到最相似的内容
 - 🌐 **Web界面**: 现代化的响应式Web界面
 - 🔌 **MCP服务器**: 支持Model Context Protocol
-- 📦 **批量生成**: 支持批量图像生成
-- 💾 **自动保存**: 自动下载并保存生成的图像
+- 📦 **批量处理**: 支持批量文本嵌入
+- 💾 **数据导出**: 支持嵌入向量的保存和加载
 
 ## 🚀 快速开始
 
@@ -47,10 +47,12 @@ pip install -r requirements.txt
 ```bash
 export ZHIPU_API_KEY="your_zhipu_api_key_here"
 ```
+
 ### MCP配置
+```json
 {
   "mcpServers":{
-    "mcp-image-generator": {
+    "mcp-text-embedding": {
       "disabled": false,
       "timeout": 60,
       "type": "sse",
@@ -58,13 +60,14 @@ export ZHIPU_API_KEY="your_zhipu_api_key_here"
     }
   }
 }
+```
 
 ### 运行方式
 
 #### 1. Web界面模式（推荐）
 
 ```bash
-python image_server.py
+python embedding_server.py
 ```
 
 然后访问 http://localhost:5000
@@ -85,17 +88,15 @@ python main.py --mcp
 
 | 模型 | 描述 | 特点 |
 |------|------|------|
-| cogview-4 | CogView-4最新模型 | 高质量输出，推荐使用 |
-| cogview-4-250304 | CogView-4优化版本 | 更快的生成速度 |
-| cogview-3-flash | CogView-3快速模型 | 快速生成，适合批量处理 |
+| embedding-3 | 最新的嵌入模型 | 高质量文本向量表示，推荐使用 |
+| embedding-2 | 较早版本的嵌入模型 | 兼容性更好，稳定性高 |
 
-## 📐 支持的图像尺寸
+## 🔤 主要功能
 
-- **1024x1024** - 正方形（推荐）
-- **1024x768** - 横向
-- **768x1024** - 纵向
-- **768x768** - 中等正方形
-- **512x512** - 小尺寸
+- **单文本嵌入** - 将单个文本转换为高维向量
+- **批量文本嵌入** - 同时处理多个文本
+- **相似度计算** - 计算两个文本的语义相似度
+- **相似文本搜索** - 在候选文本中找到最相似的内容
 
 ## 🎨 使用示例
 
