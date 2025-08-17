@@ -1,161 +1,129 @@
-# 智谱AI文本分词器
+# 网络搜索 MCP 服务器
 
-一个基于智谱AI API的文本分词工具，用于计算文本的token数量。适用于文本长度评估、模型输入预估、对话上下文截断、费用计算等场景。
+一个基于模型上下文协议 (MCP) 的服务器，使用智谱AI的网络搜索API提供网络搜索功能。
 
-## 功能特点
+## 功能特性
 
-- 支持智谱AI的多种模型分词（GLM-4-Plus、GLM-4、GLM-3-Turbo）
-- 支持多条消息的token计算
-- 提供Web界面和API接口
-- 支持MCP服务器模式
-- 支持交互式命令行模式
+- 支持自定义参数的网络搜索
+- 搜索意图分析
+- 最近内容过滤
+- 搜索结果保存和加载
+- 交互式命令行界面
+- MCP服务器模式，可与MCP客户端集成
 
-## 安装
+## 安装步骤
 
-### 环境要求
-
-- Python 3.8+
-- 智谱AI API密钥
-
-### 安装步骤
-
-1. 克隆仓库
-
+1. 克隆仓库：
 ```bash
-git clone https://github.com/yourusername/Text-Tokenizer.git
-cd Text-Tokenizer
+git clone <repository-url>
+cd Web-Search-MCP
 ```
 
-2. 安装依赖
-
+2. 安装依赖：
 ```bash
 pip install -r requirements.txt
 ```
 
-3. 配置API密钥
+3. 配置API密钥：
+   - 复制 `config.json.example` 为 `config.json`
+   - 在配置文件中添加您的智谱AI API密钥
 
-复制配置文件模板并填入你的API密钥：
+## 配置说明
 
-```bash
-cp config.json.example config.json
+创建 `config.json` 配置文件：
+
+```json
+{
+  "zhipu_api_key": "your_api_key_here",
+  "search_engine": "search_std",
+  "api_settings": {
+    "base_url": "https://open.bigmodel.cn/api/paas/v4",
+    "timeout": 120,
+    "max_retries": 3
+  },
+  "server_settings": {
+    "host": "0.0.0.0",
+    "port": 8000,
+    "debug": true
+  },
+  "mcp_settings": {
+    "transport": "sse",
+    "timeout": 60
+  }
+}
 ```
 
-然后编辑 `config.json` 文件，填入你的智谱AI API密钥。
+### 搜索引擎选项
+
+- `search_std`: 智慧基础版搜索引擎（推荐）
+- `search_pro`: 智慧高阶版搜索引擎
+- `search_pro_sogou`: 搜狗搜索引擎
+- `search_pro_quark`: 夸克搜索引擎
 
 ## 使用方法
 
-### 命令行交互模式
-
-运行以下命令启动交互式命令行模式：
-
+### 交互模式
+以交互模式运行服务器：
 ```bash
 python main.py
 ```
 
-在交互式模式中，你可以：
-- 计算文本的token数量
-- 查看支持的模型
-- 测试API连接
-- 保存和加载分词结果
-
-### Web界面模式
-
-运行以下命令启动Web服务器：
-
-```bash
-python tokenizer_server.py
-```
-
-然后在浏览器中访问 `http://localhost:5000` 即可使用Web界面。
-
 ### MCP服务器模式
-
-运行以下命令启动MCP服务器：
-
+启动MCP服务器：
 ```bash
 python main.py --mcp
 ```
 
-## API接口
-
-### 分词接口
-
-```
-POST /api/tokenize
+### API测试
+测试API连接：
+```bash
+python main.py --test
 ```
 
-请求体：
+## MCP客户端配置
+
+在您的MCP客户端配置文件中添加以下配置：
 
 ```json
 {
-  "model": "glm-4-plus",
-  "messages": [
-    {
-      "role": "user",
-      "content": "What opportunities and challenges will the Chinese large model industry face in 2025?"
+  "mcpServers": {
+    "mcp-web-search": {
+      "disabled": false,
+      "timeout": 60,
+      "type": "sse",
+      "url": "http://127.0.0.1:8000/sse"
     }
-  ]
+  }
 }
 ```
 
-响应：
+## MCP工具
 
-```json
-{
-  "success": true,
-  "model": "glm-4-plus",
-  "usage": {
-    "prompt_tokens": 123
-  },
-  "request_id": "20241120141244890ab4ee4af84acf",
-  "created": 1727156815
-}
-```
+服务器提供以下MCP工具：
 
-### 获取Token数量接口
+- `web_search`: 执行网络搜索，支持各种参数
+- `web_search_with_intent`: 带搜索意图分析的搜索
+- `web_search_recent`: 搜索最近内容
+- `test_websearch_api`: 测试API连接
+- `save_search_results_to_file`: 将搜索结果保存到文件
+- `load_search_results_from_file`: 从文件加载搜索结果
 
-```
-POST /api/token-count
-```
+## 故障排除
 
-请求体与分词接口相同，响应略有不同：
+### 常见错误
 
-```json
-{
-  "success": true,
-  "model": "glm-4-plus",
-  "token_count": 123
-}
-```
+1. **搜索引擎不能为空错误**
+   - 确保在 `config.json` 中设置了 `search_engine` 字段
+   - 推荐使用 `search_std` 作为默认值
 
-### 获取支持的模型接口
+2. **API密钥错误**
+   - 检查智谱AI API密钥是否正确配置
+   - 确保API密钥有效且有足够的配额
 
-```
-GET /api/models
-```
-
-响应：
-
-```json
-{
-  "success": true,
-  "models": ["glm-4-plus", "glm-4", "glm-3-turbo"],
-  "default_model": "glm-4-plus"
-}
-```
-
-## 项目结构
-
-- `main.py`: 主程序入口，包含MCP服务器和交互式命令行模式
-- `tokenizer_server.py`: Web服务器，提供Web界面和API接口
-- `zhipu_tokenizer_client.py`: 智谱AI分词客户端
-- `tokenizer_interface.html`: Web界面
-- `config.json`: 配置文件
-
-## 智谱API文档
-
-更多关于智谱AI文本分词器的信息，请参考[智谱官方文档](https://docs.bigmodel.cn/api-reference/%E6%A8%A1%E5%9E%8B-api/%E6%96%87%E6%9C%AC%E5%88%86%E8%AF%8D%E5%99%A8)。
+3. **连接超时**
+   - 检查网络连接
+   - 适当增加 `timeout` 配置值
 
 ## 许可证
 
-MIT
+MIT License

@@ -1,8 +1,8 @@
 """
-AI Text Tokenizer System - Main Entry Point
+AI Web Search System - Main Entry Point
 
-A comprehensive text tokenization system supporting Zhipu tokenizer models.
-Provides both MCP server capabilities and direct text tokenization functionality.
+A comprehensive web search system supporting Zhipu web search API.
+Provides both MCP server capabilities and direct web search functionality.
 """
 
 import os
@@ -14,11 +14,11 @@ import asyncio
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from mcp.server.fastmcp import FastMCP
-from zhipu_tokenizer_client import ZhipuTokenizerClient
+from zhipu_websearch_client import ZhipuWebSearchClient
 from network_diagnostic import NetworkDiagnostic
 
 # Create an MCP server
-mcp = FastMCP("AI Text Tokenizer System")
+mcp = FastMCP("AI Web Search System")
 
 # Create directories for storing files
 OUTPUTS_DIR = Path("outputs")
@@ -40,202 +40,261 @@ api_key = config.get("zhipu_api_key") or os.getenv("ZHIPU_API_KEY")
 if not api_key:
     print("警告: 未找到智谱API密钥，请设置环境变量 ZHIPU_API_KEY 或在config.json中配置")
 
-tokenizer_base_url = config.get("api_settings", {}).get("base_url", "https://open.bigmodel.cn")
-tokenizer_client = ZhipuTokenizerClient(api_key=api_key or "", base_url=tokenizer_base_url)
+websearch_base_url = config.get("api_settings", {}).get("base_url", "https://open.bigmodel.cn")
+search_engine = config.get("search_engine", "search_std")
+websearch_client = ZhipuWebSearchClient(api_key=api_key or "", base_url=websearch_base_url, search_engine=search_engine)
 
-# Text Tokenization Entry Point
-class TokenizerGenerator:
-    """主要的文本分词入口类"""
+# Web Search Entry Point
+class WebSearchGenerator:
+    """主要的网络搜索入口类"""
     
     def __init__(self):
-        self.tokenizer_client = tokenizer_client
+        self.websearch_client = websearch_client
         self.outputs_dir = OUTPUTS_DIR
     
-    def tokenize_text(self, 
-                     messages: List[Dict[str, str]],
-                     model: str = "glm-4-plus") -> Dict[str, Any]:
+    def search_web(self, 
+                   search_query: str,
+                   search_intent: bool = False,
+                   count: int = 10,
+                   search_recency_filter: str = "noLimit") -> Dict[str, Any]:
         """
-        主要的文本分词入口
+        主要的网络搜索入口
         
         Args:
-            messages: 消息列表，每个消息包含role和content
-            model: 使用的分词模型
+            search_query: 搜索查询字符串
+            search_intent: 是否返回搜索意图分析
+            count: 返回结果数量
+            search_recency_filter: 搜索时效性过滤
             
         Returns:
-            分词结果
+            搜索结果
         """
-        return self.tokenizer_client.tokenize(
-            messages=messages,
-            model=model
+        return self.websearch_client.search(
+            search_query=search_query,
+            search_intent=search_intent,
+            count=count,
+            search_recency_filter=search_recency_filter
         )
     
-    def get_token_count(self, messages: List[Dict[str, str]], 
-                       model: str = "glm-4-plus") -> int:
-        """获取文本的token数量"""
-        return self.tokenizer_client.count_tokens_for_messages(messages, model)
+    def search_with_intent(self, search_query: str, count: int = 10) -> Dict[str, Any]:
+        """执行带搜索意图分析的网络搜索"""
+        return self.websearch_client.search_with_intent(search_query, count)
+    
+    def search_recent(self, search_query: str, recency: str = "day", count: int = 10) -> Dict[str, Any]:
+        """搜索最近的内容"""
+        return self.websearch_client.search_recent(search_query, recency, count)
 
-# 创建全局文本分词实例
-tokenizer_generator = TokenizerGenerator()
+# 创建全局网络搜索实例
+websearch_generator = WebSearchGenerator()
 
 @mcp.tool()
-def tokenize_text(
-    messages: List[Dict[str, str]],
-    model: str = "glm-4-plus"
+def web_search(
+    search_query: str,
+    search_intent: bool = False,
+    count: int = 10,
+    search_recency_filter: str = "noLimit"
 ) -> Dict[str, Any]:
     """
-    对文本进行分词
+    执行网络搜索
     
     Args:
-        messages: 消息列表，每个消息包含role和content
-        model: 分词模型名称
+        search_query: 搜索查询字符串
+        search_intent: 是否返回搜索意图分析
+        count: 返回结果数量，默认10
+        search_recency_filter: 搜索时效性过滤，可选值：noLimit, day, week, month, year
     
     Returns:
-        包含分词结果的字典
+        包含搜索结果的字典
     """
     try:
-        if not messages or len(messages) == 0:
+        if not search_query or not search_query.strip():
             return {
                 "success": False,
-                "error": "消息列表不能为空"
+                "error": "搜索查询不能为空"
             }
         
-        # 验证消息格式
-        for msg in messages:
-            if not isinstance(msg, dict) or "role" not in msg or "content" not in msg:
-                return {
-                    "success": False,
-                    "error": "消息格式错误，每个消息必须包含role和content字段"
-                }
-        
-        result = tokenizer_generator.tokenize_text(
-            messages=messages,
-            model=model
+        # 验证参数
+        validation = websearch_client.validate_search_params(
+            search_query, count, search_recency_filter
         )
+        
+        if not validation["valid"]:
+            return {
+                "success": False,
+                "error": f"参数验证失败: {', '.join(validation['errors'])}"
+            }
+        
+        result = websearch_generator.search_web(
+            search_query=search_query,
+            search_intent=search_intent,
+            count=count,
+            search_recency_filter=search_recency_filter
+        )
+        
+        # 格式化结果
+        formatted_result = websearch_client.format_search_results(result)
         
         return {
             "success": True,
-            "model": model,
-            "usage": result.get("usage", {}),
-            "request_id": result.get("id", ""),
-            "created": result.get("created", 0)
+            "search_query": search_query,
+            "search_intent": search_intent,
+            "count": count,
+            "search_recency_filter": search_recency_filter,
+            "result": formatted_result
         }
         
     except Exception as e:
         return {
             "success": False,
-            "error": f"文本分词失败: {str(e)}"
+            "error": f"网络搜索失败: {str(e)}"
         }
 
 @mcp.tool()
-def get_token_count(
-    messages: List[Dict[str, str]],
-    model: str = "glm-4-plus"
+def web_search_with_intent(
+    search_query: str,
+    count: int = 10
 ) -> Dict[str, Any]:
     """
-    获取文本的token数量
+    执行带搜索意图分析的网络搜索
     
     Args:
-        messages: 消息列表，每个消息包含role和content
-        model: 分词模型名称
+        search_query: 搜索查询字符串
+        count: 返回结果数量，默认10
     
     Returns:
-        包含token数量的字典
+        包含搜索意图和搜索结果的字典
     """
     try:
-        if not messages or len(messages) == 0:
+        if not search_query or not search_query.strip():
             return {
                 "success": False,
-                "error": "消息列表不能为空"
+                "error": "搜索查询不能为空"
             }
         
-        # 验证消息格式
-        for msg in messages:
-            if not isinstance(msg, dict) or "role" not in msg or "content" not in msg:
-                return {
-                    "success": False,
-                    "error": "消息格式错误，每个消息必须包含role和content字段"
-                }
-        
-        token_count = tokenizer_generator.get_token_count(
-            messages=messages,
-            model=model
+        # 验证参数
+        validation = websearch_client.validate_search_params(
+            search_query, count, "noLimit"
         )
         
-        result = {
-            "success": True,
-            "model": model,
-            "token_count": token_count
-        }
-        
-        return result
-        
-    except Exception as e:
-        return {
-            "success": False,
-            "error": f"获取token数量失败: {str(e)}"
-        }
-
-@mcp.tool()
-def get_supported_tokenizer_models() -> Dict[str, Any]:
-    """
-    获取支持的分词模型列表
-    
-    Returns:
-        包含支持模型的结果字典
-    """
-    try:
-        models = tokenizer_client.get_available_models()
-        
-        return {
-            "success": True,
-            "models": models,
-            "default_model": "glm-4-plus",
-            "model_info": {
-                "glm-4-plus": "智谱AI GLM-4-Plus模型的分词器",
-                "glm-4": "智谱AI GLM-4模型的分词器",
-                "glm-3-turbo": "智谱AI GLM-3-Turbo模型的分词器"
+        if not validation["valid"]:
+            return {
+                "success": False,
+                "error": f"参数验证失败: {', '.join(validation['errors'])}"
             }
+        
+        result = websearch_generator.search_with_intent(
+            search_query=search_query,
+            count=count
+        )
+        
+        # 格式化结果
+        formatted_result = websearch_client.format_search_results(result)
+        
+        return {
+            "success": True,
+            "search_query": search_query,
+            "count": count,
+            "result": formatted_result
         }
         
     except Exception as e:
         return {
             "success": False,
-            "error": f"获取支持的模型失败: {str(e)}"
+            "error": f"搜索意图分析失败: {str(e)}"
         }
 
 @mcp.tool()
-def test_tokenizer_api(test_messages: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
+def web_search_recent(
+    search_query: str,
+    recency: str = "day",
+    count: int = 10
+) -> Dict[str, Any]:
     """
-    测试文本分词API连接和功能
+    搜索最近的内容
     
     Args:
-        test_messages: 可选的测试消息列表
+        search_query: 搜索查询字符串
+        recency: 时效性过滤，可选值：day, week, month, year
+        count: 返回结果数量，默认10
+    
+    Returns:
+        包含最近搜索结果的字典
+    """
+    try:
+        if not search_query or not search_query.strip():
+            return {
+                "success": False,
+                "error": "搜索查询不能为空"
+            }
+        
+        # 验证参数
+        validation = websearch_client.validate_search_params(
+            search_query, count, recency
+        )
+        
+        if not validation["valid"]:
+            return {
+                "success": False,
+                "error": f"参数验证失败: {', '.join(validation['errors'])}"
+            }
+        
+        result = websearch_generator.search_recent(
+            search_query=search_query,
+            recency=recency,
+            count=count
+        )
+        
+        # 格式化结果
+        formatted_result = websearch_client.format_search_results(result)
+        
+        return {
+            "success": True,
+            "search_query": search_query,
+            "recency": recency,
+            "count": count,
+            "result": formatted_result
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"最近内容搜索失败: {str(e)}"
+        }
+
+@mcp.tool()
+def test_websearch_api(test_query: Optional[str] = None) -> Dict[str, Any]:
+    """
+    测试网络搜索API连接和功能
+    
+    Args:
+        test_query: 可选的测试搜索查询
     
     Returns:
         包含测试结果的字典
     """
     try:
         # 测试API连接
-        connection_test = tokenizer_client.test_connection()
+        connection_test = websearch_client.test_connection()
         
         result = {
             "success": True,
             "connection_test": connection_test,
-            "supported_models": tokenizer_client.get_available_models()
+            "supported_recency_filters": websearch_client.get_available_recency_filters()
         }
         
-        # 如果提供了测试数据，进行分词测试
-        if test_messages:
+        # 如果提供了测试查询，进行搜索测试
+        if test_query:
             try:
-                tokenize_result = tokenizer_client.tokenize(test_messages, "glm-4-plus")
-                tokenize_test_result = {
+                search_result = websearch_client.search(test_query, count=3)
+                formatted_result = websearch_client.format_search_results(search_result)
+                search_test_result = {
                     "success": True,
-                    "message_count": len(test_messages),
-                    "token_count": tokenize_result.get("usage", {}).get("prompt_tokens", 0)
+                    "search_query": test_query,
+                    "result_count": formatted_result.get("total_results", 0)
                 }
-                result["tokenize_test"] = tokenize_test_result
+                result["search_test"] = search_test_result
             except Exception as e:
-                result["tokenize_test"] = {
+                result["search_test"] = {
                     "success": False,
                     "error": str(e)
                 }
@@ -249,40 +308,52 @@ def test_tokenizer_api(test_messages: Optional[List[Dict[str, str]]] = None) -> 
         }
 
 @mcp.tool()
-def save_tokenize_results_to_file(
-    messages: List[Dict[str, str]],
+def save_search_results_to_file(
+    search_query: str,
     filename: str,
-    model: str = "glm-4-plus"
+    search_intent: bool = False,
+    count: int = 10,
+    search_recency_filter: str = "noLimit"
 ) -> Dict[str, Any]:
     """
-    将分词结果保存到文件
+    将搜索结果保存到文件
     
     Args:
-        messages: 消息列表
+        search_query: 搜索查询字符串
         filename: 保存的文件名
-        model: 分词模型名称
+        search_intent: 是否返回搜索意图分析
+        count: 返回结果数量
+        search_recency_filter: 搜索时效性过滤
     
     Returns:
         保存结果字典
     """
     try:
-        if not messages or not filename:
+        if not search_query or not filename:
             return {
                 "success": False,
-                "error": "消息列表和文件名都是必需的"
+                "error": "搜索查询和文件名都是必需的"
             }
         
-        # 获取分词结果
-        tokenize_result = tokenizer_generator.tokenize_text(messages, model)
+        # 获取搜索结果
+        search_result = websearch_generator.search_web(
+            search_query=search_query,
+            search_intent=search_intent,
+            count=count,
+            search_recency_filter=search_recency_filter
+        )
+        
+        # 格式化结果
+        formatted_result = websearch_client.format_search_results(search_result)
         
         # 准备保存数据
         save_data = {
-            "model": model,
+            "search_query": search_query,
+            "search_intent": search_intent,
+            "count": count,
+            "search_recency_filter": search_recency_filter,
             "timestamp": time.time(),
-            "messages": messages,
-            "usage": tokenize_result.get("usage", {}),
-            "request_id": tokenize_result.get("id", ""),
-            "created": tokenize_result.get("created", 0)
+            "result": formatted_result
         }
         
         # 创建唯一文件名
@@ -302,21 +373,20 @@ def save_tokenize_results_to_file(
             "file_path": str(file_path),
             "filename": unique_filename,
             "size": file_path.stat().st_size,
-            "message_count": len(messages),
-            "token_count": tokenize_result.get("usage", {}).get("prompt_tokens", 0),
-            "model": model
+            "search_query": search_query,
+            "result_count": formatted_result.get("total_results", 0)
         }
         
     except Exception as e:
         return {
             "success": False,
-            "error": f"保存分词结果失败: {str(e)}"
+            "error": f"保存搜索结果失败: {str(e)}"
         }
 
 @mcp.tool()
-def load_tokenize_results_from_file(filename: str) -> Dict[str, Any]:
+def load_search_results_from_file(filename: str) -> Dict[str, Any]:
     """
-    从文件加载分词结果
+    从文件加载搜索结果
     
     Args:
         filename: 文件名
@@ -351,31 +421,33 @@ def load_tokenize_results_from_file(filename: str) -> Dict[str, Any]:
         return {
             "success": True,
             "filename": file_path.name,
-            "model": data.get("model"),
-            "message_count": len(data.get("messages", [])),
+            "search_query": data.get("search_query"),
+            "result_count": data.get("result", {}).get("total_results", 0),
             "timestamp": data.get("timestamp"),
-            "usage": data.get("usage", {}),
-            "messages": data.get("messages", [])
+            "search_intent": data.get("search_intent", False),
+            "count": data.get("count", 0),
+            "search_recency_filter": data.get("search_recency_filter", "noLimit"),
+            "result": data.get("result", {})
         }
         
     except Exception as e:
         return {
             "success": False,
-            "error": f"加载分词结果失败: {str(e)}"
+            "error": f"加载搜索结果失败: {str(e)}"
         }
 
 def run_interactive_mode():
-    """运行交互式文本分词模式"""
+    """运行交互式网络搜索模式"""
     print("=" * 60)
-    print("🔤 AI文本分词系统 - 交互模式")
+    print("🔍 AI网络搜索系统 - 交互模式")
     print("=" * 60)
     print("支持的功能:")
-    print("1. 文本分词")
-    print("2. 获取Token数量")
-    print("3. 查看支持的模型")
+    print("1. 网络搜索")
+    print("2. 搜索意图分析")
+    print("3. 最近内容搜索")
     print("4. 测试API连接")
-    print("5. 保存分词结果到文件")
-    print("6. 从文件加载分词结果")
+    print("5. 保存搜索结果到文件")
+    print("6. 从文件加载搜索结果")
     print("7. 启动MCP服务器")
     print("0. 退出")
     print("=" * 60)
@@ -388,11 +460,11 @@ def run_interactive_mode():
                 print("👋 再见!")
                 break
             elif choice == "1":
-                handle_text_tokenize()
+                handle_web_search()
             elif choice == "2":
-                handle_token_count()
+                handle_search_with_intent()
             elif choice == "3":
-                handle_model_info()
+                handle_search_recent()
             elif choice == "4":
                 handle_api_test()
             elif choice == "5":
@@ -412,174 +484,184 @@ def run_interactive_mode():
         except Exception as e:
             print(f"❌ 错误: {e}")
 
-def handle_text_tokenize():
-    """处理文本分词"""
-    print("\n🔤 文本分词")
+def handle_web_search():
+    """处理网络搜索"""
+    print("\n🔍 网络搜索")
     
-    messages = []
-    print("请输入消息 (格式: role:content，每行一个，空行结束):")
-    print("例如: user:Hello, how are you?")
-    print("      assistant:I'm doing well, thank you for asking!")
-    
-    while True:
-        line = input().strip()
-        if not line:
-            break
-        
-        try:
-            role, content = line.split(":", 1)
-            messages.append({
-                "role": role.strip(),
-                "content": content.strip()
-            })
-        except ValueError:
-            print("❌ 格式错误，请使用 'role:content' 格式")
-    
-    if not messages:
-        print("❌ 没有输入任何消息")
+    search_query = input("请输入搜索查询: ").strip()
+    if not search_query:
+        print("❌ 搜索查询不能为空")
         return
     
-    models = tokenizer_client.get_available_models()
-    print(f"\n可用的模型: {', '.join(models)}")
-    model = input("请选择模型 (默认: glm-4-plus): ").strip() or "glm-4-plus"
-    
-    print("🔍 分词中...")
+    count = input("请输入结果数量 (默认: 10): ").strip()
     try:
-        result = tokenize_text(messages, model)
+        count = int(count) if count else 10
+    except ValueError:
+        count = 10
+    
+    recency_filters = websearch_client.get_available_recency_filters()
+    print(f"\n可用的时效性过滤: {', '.join(recency_filters)}")
+    search_recency_filter = input("请选择时效性过滤 (默认: noLimit): ").strip() or "noLimit"
+    
+    search_intent = input("是否启用搜索意图分析? (y/n, 默认: n): ").strip().lower() == "y"
+    
+    print("🔍 搜索中...")
+    try:
+        result = web_search(search_query, search_intent, count, search_recency_filter)
         
         if result["success"]:
-            print(f"✅ 文本分词成功!")
-            print(f"模型: {result['model']}")
-            print(f"消息数量: {len(messages)}")
-            print(f"\n使用情况:")
-            print(f"  Token数量: {result['usage'].get('prompt_tokens', 0)}")
-            print(f"  请求ID: {result['request_id']}")
-            print(f"  创建时间: {result['created']}")
+            print(f"✅ 网络搜索成功!")
+            print(f"搜索查询: {result['search_query']}")
+            print(f"结果数量: {result['result']['total_results']}")
+            
+            # 显示搜索意图
+            if result['result']['search_intent']:
+                print(f"\n🎯 搜索意图:")
+                for intent in result['result']['search_intent']:
+                    print(f"  查询: {intent['query']}")
+                    print(f"  意图: {intent['intent']}")
+                    print(f"  关键词: {intent['keywords']}")
+            
+            # 显示搜索结果
+            print(f"\n📋 搜索结果:")
+            for i, item in enumerate(result['result']['search_results'][:5], 1):
+                print(f"{i}. {item['title']}")
+                print(f"   链接: {item['link']}")
+                print(f"   内容: {item['content'][:100]}...")
+                if item['publish_date']:
+                    print(f"   发布时间: {item['publish_date']}")
+                print()
         else:
-            print(f"❌ 分词失败: {result['error']}")
+            print(f"❌ 搜索失败: {result['error']}")
     except Exception as e:
-        print(f"❌ 分词失败: {str(e)}")
+        print(f"❌ 搜索失败: {str(e)}")
 
-def handle_token_count():
-    """处理获取Token数量"""
-    print("\n🔢 获取Token数量")
+def handle_search_with_intent():
+    """处理搜索意图分析"""
+    print("\n🎯 搜索意图分析")
     
-    messages = []
-    print("请输入消息 (格式: role:content，每行一个，空行结束):")
-    print("例如: user:Hello, how are you?")
-    print("      assistant:I'm doing well, thank you for asking!")
-    
-    while True:
-        line = input().strip()
-        if not line:
-            break
-        
-        try:
-            role, content = line.split(":", 1)
-            messages.append({
-                "role": role.strip(),
-                "content": content.strip()
-            })
-        except ValueError:
-            print("❌ 格式错误，请使用 'role:content' 格式")
-    
-    if not messages:
-        print("❌ 没有输入任何消息")
+    search_query = input("请输入搜索查询: ").strip()
+    if not search_query:
+        print("❌ 搜索查询不能为空")
         return
     
-    models = tokenizer_client.get_available_models()
-    print(f"\n可用的模型: {', '.join(models)}")
-    model = input("请选择模型 (默认: glm-4-plus): ").strip() or "glm-4-plus"
+    count = input("请输入结果数量 (默认: 10): ").strip()
+    try:
+        count = int(count) if count else 10
+    except ValueError:
+        count = 10
     
-    print("🔍 计算中...")
+    print("🔍 分析搜索意图并搜索中...")
     try:
-        result = get_token_count(messages, model)
+        result = web_search_with_intent(search_query, count)
         
         if result["success"]:
-            print(f"✅ Token计算成功!")
-            print(f"模型: {result['model']}")
-            print(f"消息数量: {len(messages)}")
-            print(f"Token数量: {result['token_count']}")
+            print(f"✅ 搜索意图分析成功!")
+            print(f"搜索查询: {result['search_query']}")
+            print(f"结果数量: {result['result']['total_results']}")
+            
+            # 显示搜索意图
+            if result['result']['search_intent']:
+                print(f"\n🎯 搜索意图分析:")
+                for intent in result['result']['search_intent']:
+                    print(f"  原始查询: {intent['query']}")
+                    print(f"  搜索意图: {intent['intent']}")
+                    print(f"  提取关键词: {intent['keywords']}")
+                    print()
+            
+            # 显示搜索结果
+            print(f"📋 搜索结果:")
+            for i, item in enumerate(result['result']['search_results'][:3], 1):
+                print(f"{i}. {item['title']}")
+                print(f"   链接: {item['link']}")
+                print(f"   内容: {item['content'][:150]}...")
+                print()
         else:
-            print(f"❌ 计算失败: {result['error']}")
+            print(f"❌ 搜索意图分析失败: {result['error']}")
     except Exception as e:
-        print(f"❌ 计算失败: {str(e)}")
+        print(f"❌ 搜索意图分析失败: {str(e)}")
 
-def handle_model_info():
-    """处理模型信息查看"""
-    print("\n🔧 支持的分词模型")
+def handle_search_recent():
+    """处理最近内容搜索"""
+    print("\n📅 最近内容搜索")
+    
+    search_query = input("请输入搜索查询: ").strip()
+    if not search_query:
+        print("❌ 搜索查询不能为空")
+        return
+    
+    recency_filters = websearch_client.get_available_recency_filters()
+    print(f"\n可用的时效性过滤: {', '.join(recency_filters[1:])}")  # 排除noLimit
+    recency = input("请选择时效性过滤 (默认: day): ").strip() or "day"
+    
+    count = input("请输入结果数量 (默认: 10): ").strip()
     try:
-        result = get_supported_tokenizer_models()
+        count = int(count) if count else 10
+    except ValueError:
+        count = 10
+    
+    print("🔍 搜索最近内容中...")
+    try:
+        result = web_search_recent(search_query, recency, count)
         
         if result["success"]:
-            print("✅ 可用的模型:")
-            for model in result["models"]:
-                info = result["model_info"].get(model, "无描述")
-                print(f"  {model}: {info}")
-            print(f"\n默认模型: {result['default_model']}")
+            print(f"✅ 最近内容搜索成功!")
+            print(f"搜索查询: {result['search_query']}")
+            print(f"时效性: {result['recency']}")
+            print(f"结果数量: {result['result']['total_results']}")
+            
+            # 显示搜索结果
+            print(f"\n📋 最近搜索结果:")
+            for i, item in enumerate(result['result']['search_results'][:5], 1):
+                print(f"{i}. {item['title']}")
+                print(f"   链接: {item['link']}")
+                print(f"   内容: {item['content'][:100]}...")
+                if item['publish_date']:
+                    print(f"   发布时间: {item['publish_date']}")
+                print()
         else:
-            print(f"❌ 获取模型信息失败: {result['error']}")
+            print(f"❌ 最近内容搜索失败: {result['error']}")
     except Exception as e:
-        print(f"❌ 获取模型信息失败: {str(e)}")
+        print(f"❌ 最近内容搜索失败: {str(e)}")
 
 def handle_api_test():
     """处理API测试"""
     print("\n🔧 API连接测试")
-    test_messages = None
+    test_query = None
     
-    use_test_data = input("是否使用测试数据? (y/n, 默认: y): ").strip().lower() or "y"
+    use_test_data = input("是否使用测试查询? (y/n, 默认: y): ").strip().lower() or "y"
     if use_test_data == "y":
-        test_messages = [
-            {"role": "user", "content": "Hello, how are you?"}
-        ]
+        test_query = "北京天气"
     
     print("🔍 测试中...")
     try:
-        result = test_tokenizer_api(test_messages)
+        result = test_websearch_api(test_query)
         
         if result["success"]:
             print("✅ API测试结果:")
             conn_test = result["connection_test"]
             print(f"  连接状态: {'正常' if conn_test else '失败'}")
-            print(f"  支持的模型: {', '.join(result['supported_models'])}")
+            print(f"  支持的时效性过滤: {', '.join(result['supported_recency_filters'])}")
             
-            if 'tokenize_test' in result:
-                tokenize_test = result['tokenize_test']
-                if tokenize_test['success']:
-                    print(f"  测试分词: 成功处理 {tokenize_test['message_count']} 个消息")
-                    print(f"  Token数量: {tokenize_test['token_count']}")
+            if 'search_test' in result:
+                search_test = result['search_test']
+                if search_test['success']:
+                    print(f"  测试搜索: 成功搜索 '{search_test['search_query']}'")
+                    print(f"  结果数量: {search_test['result_count']}")
                 else:
-                    print(f"  测试分词失败: {tokenize_test['error']}")
+                    print(f"  测试搜索失败: {search_test['error']}")
         else:
             print(f"❌ API测试失败: {result['error']}")
     except Exception as e:
         print(f"❌ API测试失败: {str(e)}")
 
 def handle_save_results():
-    """处理保存分词结果"""
-    print("\n💾 保存分词结果到文件")
+    """处理保存搜索结果"""
+    print("\n💾 保存搜索结果到文件")
     
-    messages = []
-    print("请输入消息 (格式: role:content，每行一个，空行结束):")
-    print("例如: user:Hello, how are you?")
-    print("      assistant:I'm doing well, thank you for asking!")
-    
-    while True:
-        line = input().strip()
-        if not line:
-            break
-        
-        try:
-            role, content = line.split(":", 1)
-            messages.append({
-                "role": role.strip(),
-                "content": content.strip()
-            })
-        except ValueError:
-            print("❌ 格式错误，请使用 'role:content' 格式")
-    
-    if not messages:
-        print("❌ 没有输入任何消息")
+    search_query = input("请输入搜索查询: ").strip()
+    if not search_query:
+        print("❌ 搜索查询不能为空")
         return
     
     filename = input("请输入文件名: ").strip()
@@ -587,28 +669,36 @@ def handle_save_results():
         print("❌ 文件名不能为空")
         return
     
-    models = tokenizer_client.get_available_models()
-    print(f"\n可用的模型: {', '.join(models)}")
-    model = input("请选择模型 (默认: glm-4-plus): ").strip() or "glm-4-plus"
-    
-    print("💾 保存中...")
+    count = input("请输入结果数量 (默认: 10): ").strip()
     try:
-        result = save_tokenize_results_to_file(messages, filename, model)
+        count = int(count) if count else 10
+    except ValueError:
+        count = 10
+    
+    recency_filters = websearch_client.get_available_recency_filters()
+    print(f"\n可用的时效性过滤: {', '.join(recency_filters)}")
+    search_recency_filter = input("请选择时效性过滤 (默认: noLimit): ").strip() or "noLimit"
+    
+    search_intent = input("是否启用搜索意图分析? (y/n, 默认: n): ").strip().lower() == "y"
+    
+    print("💾 搜索并保存中...")
+    try:
+        result = save_search_results_to_file(search_query, filename, search_intent, count, search_recency_filter)
         
         if result["success"]:
             print(f"✅ 保存成功!")
             print(f"文件路径: {result['file_path']}")
             print(f"文件大小: {result['size']} 字节")
-            print(f"消息数量: {result['message_count']}")
-            print(f"Token数量: {result['token_count']}")
+            print(f"搜索查询: {result['search_query']}")
+            print(f"结果数量: {result['result_count']}")
         else:
             print(f"❌ 保存失败: {result['error']}")
     except Exception as e:
         print(f"❌ 保存失败: {str(e)}")
 
 def handle_load_results():
-    """处理加载分词结果"""
-    print("\n📂 从文件加载分词结果")
+    """处理加载搜索结果"""
+    print("\n📂 从文件加载搜索结果")
     filename = input("请输入文件名: ").strip()
     if not filename:
         print("❌ 文件名不能为空")
@@ -616,19 +706,24 @@ def handle_load_results():
     
     print("📂 加载中...")
     try:
-        result = load_tokenize_results_from_file(filename)
+        result = load_search_results_from_file(filename)
         
         if result["success"]:
             print(f"✅ 加载成功!")
             print(f"文件名: {result['filename']}")
-            print(f"模型: {result['model']}")
-            print(f"消息数量: {result['message_count']}")
-            print(f"Token数量: {result['usage'].get('prompt_tokens', 0)}")
+            print(f"搜索查询: {result['search_query']}")
+            print(f"结果数量: {result['result_count']}")
+            print(f"时效性过滤: {result['search_recency_filter']}")
+            print(f"搜索意图分析: {'是' if result['search_intent'] else '否'}")
             
-            # 显示消息内容
-            print("\n消息内容:")
-            for i, msg in enumerate(result['messages']):
-                print(f"{i+1}. {msg['role']}: {msg['content'][:50]}...")
+            # 显示搜索结果
+            if result['result']['search_results']:
+                print("\n搜索结果:")
+                for i, item in enumerate(result['result']['search_results'][:3], 1):
+                    print(f"{i}. {item['title']}")
+                    print(f"   链接: {item['link']}")
+                    print(f"   内容: {item['content'][:80]}...")
+                    print()
         else:
             print(f"❌ 加载失败: {result['error']}")
     except Exception as e:

@@ -1,114 +1,134 @@
-# 智谱文本重排序项目改造任务
+# 项目改造任务进度
 
-## To Do
-- [ ] 更新项目文档
-    - [ ] 修改README.md
-    - [ ] 更新配置示例
-    - [ ] 添加使用说明
+## 项目概述
+将现有的文本分词器项目改造为网络搜索系统，对接智谱AI的网络搜索API。
 
-## Doing
+## 任务状态
 
-## Done
-- [x] 理解智谱重排序API接口
-- [x] 制定改造计划
-- [x] 创建智谱文本重排序客户端
-    - [x] 实现rerank API调用 (zhipu_rerank_client.py)
-    - [x] 支持查询文本和候选文档列表
-    - [x] 处理API响应和错误
-    - [x] 添加连接测试功能
-    - [x] 实现相关性阈值筛选
-- [x] 更新主程序入口
-    - [x] 创建新的重排序主程序 (main_rerank.py)
-    - [x] 替换嵌入功能为重排序功能
-    - [x] 更新MCP工具定义
-    - [x] 修改交互式界面
-- [x] 更新Web界面
-    - [x] 创建重排序Web界面 (rerank_interface.html)
-    - [x] 实现四个主要功能标签页
-    - [x] 更新JavaScript逻辑
-    - [x] 调整UI布局和样式
-- [x] 创建Web服务器
-    - [x] 实现Flask后端API (rerank_server.py)
-    - [x] 添加重排序相关接口
-    - [x] 实现错误处理和日志记录
+### Done ✅
+- [x] 创建智谱网络搜索客户端 (`zhipu_websearch_client.py`)
+  - [x] 实现基础搜索功能
+  - [x] 支持搜索意图分析
+  - [x] 支持时效性过滤
+  - [x] 参数验证和错误处理
+  - [x] 结果格式化功能
 
-## 项目改造完成总结
+- [x] 改造主程序 (`main.py`)
+  - [x] 替换分词器客户端为网络搜索客户端
+  - [x] 更新MCP工具函数
+    - [x] `web_search`: 基础网络搜索
+    - [x] `web_search_with_intent`: 带意图分析的搜索
+    - [x] `web_search_recent`: 最近内容搜索
+    - [x] `test_websearch_api`: API连接测试
+    - [x] `save_search_results_to_file`: 保存搜索结果
+    - [x] `load_search_results_from_file`: 加载搜索结果
+  - [x] 更新交互式模式功能
+  - [x] 更新所有处理函数
 
-### 已完成的主要改造内容：
+- [x] 改造服务器 (`tokenizer_server.py`)
+  - [x] 替换分词器客户端为网络搜索客户端
+  - [x] 更新API路由
+    - [x] `/api/search`: 基础搜索API
+    - [x] `/api/search-with-intent`: 意图分析搜索API
+    - [x] `/api/search-filters`: 获取搜索过滤选项
+  - [x] 更新服务器描述和配置
 
-#### 1. 核心功能改造
-- ✅ 将文本嵌入API改为智谱文本重排序API
-- ✅ 支持 rerank 模型
-- ✅ 实现文档重排序功能
-- ✅ 添加最相关文档获取功能
-- ✅ 实现相关性阈值筛选功能
+- [x] 创建新的Web界面 (`websearch_interface.html`)
+  - [x] 现代化设计使用Tailwind CSS
+  - [x] 响应式布局
+  - [x] 搜索表单和选项
+  - [x] 实时搜索结果显示
+  - [x] 搜索意图分析展示
+  - [x] 错误处理和加载状态
+  - [x] 移动端友好设计
 
-#### 2. 重排序客户端实现 (zhipu_rerank_client.py)
-- ✅ 完整的重排序API调用封装
-- ✅ 错误处理和重试机制
-- ✅ 支持多种查询模式
-- ✅ 连接测试功能
-- ✅ 使用信息提取
+- [x] 更新项目文档 (`README.md`)
+  - [x] 更新项目描述和功能介绍
+  - [x] 更新API文档
+  - [x] 更新MCP工具说明
+  - [x] 添加搜索参数说明
+  - [x] 更新使用示例
 
-#### 3. MCP服务器改造 (main_rerank.py)
-- ✅ 更新所有MCP工具为文本重排序相关
-- ✅ 保持原有的服务器架构
-- ✅ 添加交互式命令行界面
-- ✅ 实现文件保存和加载功能
+### Doing 🔄
+- [ ] 测试和验证
+  - [ ] 测试所有API接口
+  - [ ] 验证MCP服务器功能
+  - [ ] 测试Web界面交互
+  - [ ] 验证搜索结果格式
 
-#### 4. Web界面 (rerank_interface.html)
-- ✅ 现代化的响应式设计
-- ✅ 四个主要功能标签页：
-  - 文档重排序
-  - 最相关文档获取
-  - 阈值筛选
-  - API测试
-- ✅ 实时API状态监控
-- ✅ 结果可视化和下载功能
-- ✅ Toast通知系统
+### To Do 📋
+- [ ] 优化和完善
+  - [ ] 添加搜索结果缓存
+  - [ ] 优化错误处理
+  - [ ] 添加搜索历史功能
+  - [ ] 性能优化
 
-#### 5. Web服务器 (rerank_server.py)
-- ✅ Flask后端API服务
-- ✅ 完整的RESTful接口
-- ✅ 错误处理和日志记录
-- ✅ 跨域支持
+- [ ] 文档完善
+  - [ ] 添加使用示例
+  - [ ] 创建API使用指南
+  - [ ] 添加故障排除文档
 
-#### 6. 功能特性
-- 🔄 **文档重排序**: 根据查询文本对候选文档进行相关性排序
-- 🏆 **最相关文档**: 获取与查询最相关的前N个文档
-- 🎯 **阈值筛选**: 根据相关性阈值筛选符合条件的文档
-- 🧪 **API测试**: 测试API连接状态和功能
-- 📊 **结果可视化**: 直观显示相关性分数和排序结果
-- 💾 **数据导出**: 支持重排序结果的保存和下载
-- 🌐 **Web界面**: 美观的现代化界面
-- 🔧 **MCP支持**: 完整的MCP服务器功能
+## 技术实现细节
 
-### 新增文件列表
-1. `zhipu_rerank_client.py` - 智谱重排序客户端
-2. `main_rerank.py` - 重排序主程序
-3. `rerank_server.py` - 重排序Web服务器
-4. `rerank_interface.html` - 重排序Web界面
+### API对接
+- **接口地址**: `https://open.bigmodel.cn/api/paas/v4/web_search`
+- **认证方式**: Bearer Token
+- **请求参数**:
+  - `search_query`: 搜索查询字符串
+  - `search_intent`: 是否启用搜索意图分析
+  - `count`: 返回结果数量 (1-50)
+  - `search_recency_filter`: 时效性过滤 (noLimit/day/week/month/year)
 
-### API接口
-- `POST /api/rerank` - 文档重排序
-- `POST /api/top_relevant` - 获取最相关文档
-- `POST /api/relevant_by_threshold` - 按阈值筛选相关文档
-- `GET /api/models` - 获取支持的模型
-- `POST /api/test` - 测试API连接
-- `GET /api/status` - 获取服务状态
+### 响应格式
+```json
+{
+  "id": "string",
+  "created": 123,
+  "request_id": "string",
+  "search_intent": [
+    {
+      "query": "string",
+      "intent": "SEARCH_ALL",
+      "keywords": "string"
+    }
+  ],
+  "search_result": [
+    {
+      "title": "string",
+      "content": "string",
+      "link": "string",
+      "media": "string",
+      "icon": "string",
+      "refer": "string",
+      "publish_date": "string"
+    }
+  ]
+}
+```
 
-### 使用方式
-1. **Web界面**: 运行 `python rerank_server.py` 然后访问 http://localhost:5000
-2. **命令行**: 运行 `python main_rerank.py` 进入交互式模式
-3. **MCP服务器**: 运行 `python main_rerank.py --mcp` 启动MCP服务器
+### 主要改动
+1. **客户端替换**: 从 `ZhipuTokenizerClient` 改为 `ZhipuWebSearchClient`
+2. **功能转换**: 从文本分词转为网络搜索
+3. **界面重设计**: 从分词器界面改为搜索界面
+4. **API重构**: 从分词API改为搜索API
+5. **MCP工具更新**: 所有工具函数都已更新为搜索相关功能
 
-### 项目状态
-项目已成功从文本嵌入系统改造为文本重排序系统，所有核心功能都已实现并可以正常使用。用户可以通过Web界面或MCP工具来使用文本重排序功能。
+## 项目结构
+```
+Web-Search-MCP/
+├── main.py                      # 主程序入口 (已更新)
+├── tokenizer_server.py          # Web服务器 (已更新)
+├── zhipu_websearch_client.py    # 网络搜索客户端 (新增)
+├── websearch_interface.html     # 搜索界面 (新增)
+├── README.md                    # 项目文档 (已更新)
+├── config.json.example          # 配置示例
+├── requirements.txt             # 依赖列表
+└── docs/
+    └── tasks.md                 # 任务进度 (本文件)
+```
 
-### 智谱重排序API集成
-- ✅ 支持智谱AI rerank模型
-- ✅ 正确的API端点: `/api/paas/v4/rerank`
-- ✅ 标准的请求格式: query + documents
-- ✅ 完整的响应处理: results + usage + request_id
-- ✅ 相关性分数可视化
-- ✅ 错误处理和重试机制
+## 下一步计划
+1. 进行全面测试，确保所有功能正常工作
+2. 优化用户体验和错误处理
+3. 添加更多高级搜索功能
+4. 完善文档和使用指南
