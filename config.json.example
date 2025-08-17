@@ -3,6 +3,13 @@
     "zhipu": "your_zhipu_api_key_here"
   },
   "zhipu_api_key": "your_zhipu_api_key_here",
+  "agent_dialogue": {
+    "base_url": "https://open.bigmodel.cn",
+    "agents_endpoint": "/api/v1/agents",
+    "timeout": 30,
+    "max_retries": 3,
+    "default_agent_id": "doc_translation_agent"
+  },
   "content_moderation": {
     "base_url": "https://open.bigmodel.cn",
     "moderation_endpoint": "/api/paas/v4/moderations",
@@ -11,15 +18,10 @@
     "model": "moderation",
     "max_input_length": 10000
   },
-{
-  "api_keys": {
-    "zhipu": "your_zhipu_api_key_here"
-  },
-  "zhipu_api_key": "your_zhipu_api_key_here",
   "api_settings": {
     "timeout": 120,
     "max_retries": 3,
-    "base_url": "https://open.bigmodel.cn/api/paas/v4"
+    "base_url": "https://open.bigmodel.cn"
   },
   "server_settings": {
     "host": "0.0.0.0",
