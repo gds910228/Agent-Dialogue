@@ -1,19 +1,33 @@
 {
-    "api_key": "your_api_key_here",
-    "base_url": "https://open.bigmodel.cn/api/paas/v4/images/generations",
-    "supported_models": {
-        "cogview-4": "最新的CogView-4模型，提供高质量图像生成",
-        "cogview-4-250304": "CogView-4的特定版本，针对特定场景优化",
-        "cogview-3-flash": "快速版CogView-3模型，生成速度更快"
-    },
-    "supported_sizes": ["1024x1024", "1024x768", "768x1024", "512x512", "768x768"],
-    "quality_options": ["standard", "hd"],
-    "default_model": "cogview-4",
-    "default_size": "1024x1024",
-    "default_quality": "standard",
-    "output_dir": "outputs",
-    "max_batch_size": 10,
-    "request_timeout": 30,
-    "retry_count": 3,
-    "retry_delay": 2
+  "api_keys": {
+    "zhipu": "your_zhipu_api_key_here"
+  },
+  "zhipu_api_key": "your_zhipu_api_key_here",
+  "text_rerank": {
+    "base_url": "https://open.bigmodel.cn",
+    "rerank_endpoint": "/api/paas/v4/rerank",
+    "timeout": 30,
+    "max_retries": 3,
+    "model": "rerank",
+    "max_documents": 128,
+    "max_query_length": 4096
+  },
+  "api_settings": {
+    "timeout": 120,
+    "max_retries": 3,
+    "base_url": "https://open.bigmodel.cn/api/paas/v4"
+  },
+  "server_settings": {
+    "host": "0.0.0.0",
+    "port": 5000,
+    "debug": true
+  },
+  "mcp_settings": {
+    "transport": "sse",
+    "timeout": 60
+  },
+  "output_dir": "outputs",
+  "request_timeout": 30,
+  "retry_count": 3,
+  "retry_delay": 2
 }

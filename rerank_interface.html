@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智谱AI文本重排序系统</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'inter': ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'primary': '#3B82F6',
+                        'primary-dark': '#2563EB',
+                        'secondary': '#64748B',
+                        'success': '#10B981',
+                        'warning': '#F59E0B',
+                        'error': '#EF4444',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .glass-effect {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+        .result-item {
+            transition: all 0.3s ease;
+        }
+        .result-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        .relevance-bar {
+            height: 4px;
+            border-radius: 2px;
+            transition: width 0.5s ease;
+        }
+    </style>
+</head>
+<body class="font-inter bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="gradient-bg text-white shadow-lg">
+        <div class="container mx-auto px-6 py-8">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <div class="w-12 h-12 bg-white bg-opacity-20 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-sort-amount-down text-2xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-3xl font-bold">智谱AI文本重排序系统</h1>
+                        <p class="text-blue-100 mt-1">Zhipu AI Text Reranking System</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div id="apiStatus" class="flex items-center space-x-2 glass-effect px-4 py-2 rounded-lg">
+                        <div class="w-3 h-3 bg-gray-400 rounded-full animate-pulse"></div>
+                        <span class="text-sm">检查中...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-8">
+        <!-- Navigation Tabs -->
+        <div class="bg-white rounded-xl shadow-sm mb-8 overflow-hidden">
+            <div class="flex border-b border-gray-200">
+                <button class="tab-btn flex-1 px-6 py-4 text-center font-medium transition-colors duration-200 border-b-2 border-primary text-primary bg-blue-50" data-tab="rerank">
+                    <i class="fas fa-sort-amount-down mr-2"></i>
+                    文档重排序
+                </button>
+                <button class="tab-btn flex-1 px-6 py-4 text-center font-medium transition-colors duration-200 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50" data-tab="top-relevant">
+                    <i class="fas fa-trophy mr-2"></i>
+                    最相关文档
+                </button>
+                <button class="tab-btn flex-1 px-6 py-4 text-center font-medium transition-colors duration-200 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50" data-tab="threshold">
+                    <i class="fas fa-filter mr-2"></i>
+                    阈值筛选
+                </button>
+                <button class="tab-btn flex-1 px-6 py-4 text-center font-medium transition-colors duration-200 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50" data-tab="test">
+                    <i class="fas fa-flask mr-2"></i>
+                    API测试
+                </button>
+            </div>
+        </div>
+
+        <!-- Tab Contents -->
+        
+        <!-- 文档重排序 -->
+        <div id="rerank" class="tab-content active">
+            <div class="bg-white rounded-xl shadow-sm p-8">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-2">文档重排序</h2>
+                    <p class="text-gray-600">输入查询文本和候选文档，系统将根据相关性对文档进行重新排序</p>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Input Section -->
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-search mr-1"></i>
+                                查询文本
+                            </label>
+                            <textarea id="rerankQuery" 
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-none transition-all duration-200" 
+                                    rows="3" 
+                                    placeholder="请输入您的查询文本..."></textarea>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-file-alt mr-1"></i>
+                                候选文档 (每行一个)
+                            </label>
+                            <textarea id="rerankDocuments" 
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-none transition-all duration-200" 
+                                    rows="8" 
+                                    placeholder="请输入候选文档，每行一个...&#10;例如：&#10;人工智能是计算机科学的一个分支&#10;机器学习是人工智能的子领域&#10;深度学习基于神经网络"></textarea>
+                        </div>
+                        
+                        <div class="flex space-x-4">
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-cog mr-1"></i>
+                                    模型选择
+                                </label>
+                                <select id="rerankModel" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200">
+                                    <option value="rerank">rerank</option>
+                                </select>
+                            </div>
+                            <div class="flex items-end">
+                                <button id="rerankBtn" 
+                                        class="px-8 py-3 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors duration-200 font-medium shadow-sm hover:shadow-md">
+                                    <i class="fas fa-sort-amount-down mr-2"></i>
+                                    开始重排序
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Results Section -->
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900">
+                                <i class="fas fa-list-ol mr-2"></i>
+                                重排序结果
+                            </h3>
+                            <button id="downloadRerankResults" 
+                                    class="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200 hidden">
+                                <i class="fas fa-download mr-1"></i>
+                                下载结果
+                            </button>
+                        </div>
+                        <div id="rerankResults" class="space-y-3 max-h-96 overflow-y-auto">
+                            <div class="text-center py-12 text-gray-500">
+                                <i class="fas fa-sort-amount-down text-4xl mb-4 opacity-50"></i>
+                                <p>请输入查询文本和候选文档，然后点击"开始重排序"</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 最相关文档 -->
+        <div id="top-relevant" class="tab-content">
+            <div class="bg-white rounded-xl shadow-sm p-8">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-2">获取最相关文档</h2>
+                    <p class="text-gray-600">获取与查询文本最相关的前N个文档</p>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Input Section -->
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-search mr-1"></i>
+                                查询文本
+                            </label>
+                            <textarea id="topQuery" 
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-none transition-all duration-200" 
+                                    rows="3" 
+                                    placeholder="请输入您的查询文本..."></textarea>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-file-alt mr-1"></i>
+                                候选文档 (每行一个)
+                            </label>
+                            <textarea id="topDocuments" 
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-none transition-all duration-200" 
+                                    rows="6" 
+                                    placeholder="请输入候选文档，每行一个..."></textarea>
+                        </div>
+                        
+                        <div class="flex space-x-4">
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-hashtag mr-1"></i>
+                                    返回数量
+                                </label>
+                                <input type="number" id="topK" value="5" min="1" max="20" 
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200">
+                            </div>
+                            <div class="flex items-end">
+                                <button id="topRelevantBtn" 
+                                        class="px-8 py-3 bg-success text-white rounded-lg hover:bg-green-600 transition-colors duration-200 font-medium shadow-sm hover:shadow-md">
+                                    <i class="fas fa-trophy mr-2"></i>
+                                    获取相关文档
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Results Section -->
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900">
+                                <i class="fas fa-trophy mr-2"></i>
+                                最相关文档
+                            </h3>
+                            <button id="downloadTopResults" 
+                                    class="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200 hidden">
+                                <i class="fas fa-download mr-1"></i>
+                                下载结果
+                            </button>
+                        </div>
+                        <div id="topResults" class="space-y-3 max-h-96 overflow-y-auto">
+                            <div class="text-center py-12 text-gray-500">
+                                <i class="fas fa-trophy text-4xl mb-4 opacity-50"></i>
+                                <p>请输入查询文本和候选文档，然后点击"获取相关文档"</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 阈值筛选 -->
+        <div id="threshold" class="tab-content">
+            <div class="bg-white rounded-xl shadow-sm p-8">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-2">阈值筛选</h2>
+                    <p class="text-gray-600">根据相关性阈值筛选出符合条件的文档</p>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Input Section -->
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-search mr-1"></i>
+                                查询文本
+                            </label>
+                            <textarea id="thresholdQuery" 
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-none transition-all duration-200" 
+                                    rows="3" 
+                                    placeholder="请输入您的查询文本..."></textarea>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-file-alt mr-1"></i>
+                                候选文档 (每行一个)
+                            </label>
+                            <textarea id="thresholdDocuments" 
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-none transition-all duration-200" 
+                                    rows="6" 
+                                    placeholder="请输入候选文档，每行一个..."></textarea>
+                        </div>
+                        
+                        <div class="flex space-x-4">
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-sliders-h mr-1"></i>
+                                    相关性阈值 (0-1)
+                                </label>
+                                <input type="number" id="thresholdValue" value="0.5" min="0" max="1" step="0.1" 
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200">
+                            </div>
+                            <div class="flex items-end">
+                                <button id="thresholdBtn" 
+                                        class="px-8 py-3 bg-warning text-white rounded-lg hover:bg-yellow-600 transition-colors duration-200 font-medium shadow-sm hover:shadow-md">
+                                    <i class="fas fa-filter mr-2"></i>
+                                    筛选文档
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Results Section -->
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900">
+                                <i class="fas fa-filter mr-2"></i>
+                                筛选结果
+                            </h3>
+                            <button id="downloadThresholdResults" 
+                                    class="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200 hidden">
+                                <i class="fas fa-download mr-1"></i>
+                                下载结果
+                            </button>
+                        </div>
+                        <div id="thresholdResults" class="space-y-3 max-h-96 overflow-y-auto">
+                            <div class="text-center py-12 text-gray-500">
+                                <i class="fas fa-filter text-4xl mb-4 opacity-50"></i>
+                                <p>请输入查询文本、候选文档和阈值，然后点击"筛选文档"</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- API测试 -->
+        <div id="test" class="tab-content">
+            <div class="bg-white rounded-xl shadow-sm p-8">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-2">API测试</h2>
+                    <p class="text-gray-600">测试智谱AI重排序API的连接状态和功能</p>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Test Section -->
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-search mr-1"></i>
+                                测试查询 (可选)
+                            </label>
+                            <textarea id="testQuery" 
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-none transition-all duration-200" 
+                                    rows="2" 
+                                    placeholder="输入测试查询文本..."></textarea>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-file-alt mr-1"></i>
+                                测试文档 (可选，每行一个)
+                            </label>
+                            <textarea id="testDocuments" 
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-none transition-all duration-200" 
+                                    rows="4" 
+                                    placeholder="输入测试文档，每行一个..."></textarea>
+                        </div>
+                        
+                        <div class="flex space-x-4">
+                            <button id="testApiBtn" 
+                                    class="flex-1 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200 font-medium shadow-sm hover:shadow-md">
+                                <i class="fas fa-flask mr-2"></i>
+                                开始测试
+                            </button>
+                            <button id="checkStatusBtn" 
+                                    class="flex-1 px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200 font-medium shadow-sm hover:shadow-md">
+                                <i class="fas fa-heartbeat mr-2"></i>
+                                检查状态
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Results Section -->
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900">
+                                <i class="fas fa-clipboard-check mr-2"></i>
+                                测试结果
+                            </h3>
+                        </div>
+                        <div id="testResults" class="space-y-4">
+                            <div class="text-center py-12 text-gray-500">
+                                <i class="fas fa-flask text-4xl mb-4 opacity-50"></i>
+                                <p>点击"开始测试"或"检查状态"来测试API</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed top-4 right-4 z-50 transform translate-x-full transition-transform duration-300">
+        <div class="bg-white rounded-lg shadow-lg border-l-4 p-4 max-w-sm">
+            <div class="flex items-center">
+                <div id="toastIcon" class="flex-shrink-0 mr-3">
+                    <i class="fas fa-info-circle text-blue-500"></i>
+                </div>
+                <div>
+                    <p id="toastMessage" class="text-sm font-medium text-gray-900"></p>
+                </div>
+                <button id="toastClose" class="ml-4 text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentResults = null;
+        let currentTab = 'rerank';
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeTabs();
+            checkApiStatus();
+            bindEvents();
+        });
+
+        // Tab functionality
+        function initializeTabs() {
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const tabId = btn.getAttribute('data-tab');
+                    
+                    // Update tab buttons
+                    tabBtns.forEach(b => {
+                        b.classList.remove('border-primary', 'text-primary', 'bg-blue-50');
+                        b.classList.add('border-transparent', 'text-gray-600');
+                    });
+                    btn.classList.add('border-primary', 'text-primary', 'bg-blue-50');
+                    btn.classList.remove('border-transparent', 'text-gray-600');
+                    
+                    // Update tab contents
+                    tabContents.forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    document.getElementById(tabId).classList.add('active');
+                    
+                    currentTab = tabId;
+                });
+            });
+        }
+
+        // Bind events
+        function bindEvents() {
+            // Rerank functionality
+            document.getElementById('rerankBtn').addEventListener('click', performRerank);
+            document.getElementById('topRelevantBtn').addEventListener('click', getTopRelevant);
+            document.getElementById('thresholdBtn').addEventListener('click', filterByThreshold);
+            document.getElementById('testApiBtn').addEventListener('click', testApi);
+            document.getElementById('checkStatusBtn').addEventListener('click', checkApiStatus);
+
+            // Download buttons
+            document.getElementById('downloadRerankResults').addEventListener('click', () => downloadResults('rerank'));
+            document.getElementById('downloadTopResults').addEventListener('click', () => downloadResults('top'));
+            document.getElementById('downloadThresholdResults').addEventListener('click', () => downloadResults('threshold'));
+
+            // Toast close
+            document.getElementById('toastClose').addEventListener('click', hideToast);
+        }
+
+        // API Status Check
+        async function checkApiStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                
+                const statusElement = document.getElementById('apiStatus');
+                const statusDot = statusElement.querySelector('.w-3');
+                const statusText = statusElement.querySelector('span');
+                
+                if (data.success && data.connection_ok) {
+                    statusDot.className = 'w-3 h-3 bg-green-400 rounded-full';
+                    statusText.textContent = 'API正常';
+                } else if (data.success && data.has_api_key) {
+                    statusDot.className = 'w-3 h-3 bg-yellow-400 rounded-full';
+                    statusText.textContent = 'API异常';
+                } else {
+                    statusDot.className = 'w-3 h-3 bg-red-400 rounded-full';
+                    statusText.textContent = '未配置';
+                }
+            } catch (error) {
+                const statusElement = document.getElementById('apiStatus');
+                const statusDot = statusElement.querySelector('.w-3');
+                const statusText = statusElement.querySelector('span');
+                
+                statusDot.className = 'w-3 h-3 bg-red-400 rounded-full';
+                statusText.textContent = '连接失败';
+            }
+        }
+
+        // Rerank functionality
+        async function performRerank() {
+            const query = document.getElementById('rerankQuery').value.trim();
+            const documentsText = document.getElementById('rerankDocuments').value.trim();
+            const model = document.getElementById('rerankModel').value;
+
+            if (!query) {
+                showToast('请输入查询文本', 'error');
+                return;
+            }
+
+            if (!documentsText) {
+                showToast('请输入候选文档', 'error');
+                return;
+            }
+
+            const documents = documentsText.split('\n').filter(doc => doc.trim());
+            if (documents.length === 0) {
+                showToast('请输入有效的候选文档', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('rerankBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>重排序中...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/api/rerank', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        query: query,
+                        documents: documents,
+                        model: model
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    displayRerankResults(data);
+                    currentResults = { type: 'rerank', data: data };
+                    document.getElementById('downloadRerankResults').classList.remove('hidden');
+                    showToast('重排序完成', 'success');
+                } else {
+                    showToast(data.error || '重排序失败', 'error');
+                }
+            } catch (error) {
+                showToast('网络错误: ' + error.message, 'error');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        // Top relevant functionality
+        async function getTopRelevant() {
+            const query = document.getElementById('topQuery').value.trim();
+            const documentsText = document.getElementById('topDocuments').value.trim();
+            const topK = parseInt(document.getElementById('topK').value);
+
+            if (!query) {
+                showToast('请输入查询文本', 'error');
+                return;
+            }
+
+            if (!documentsText) {
+                showToast('请输入候选文档', 'error');
+                return;
+            }
+
+            const documents = documentsText.split('\n').filter(doc => doc.trim());
+            if (documents.length === 0) {
+                showToast('请输入有效的候选文档', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('topRelevantBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>获取中...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/api/top_relevant', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        query: query,
+                        documents: documents,
+                        top_k: topK
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    displayTopResults(data);
+                    currentResults = { type: 'top', data: data };
+                    document.getElementById('downloadTopResults').classList.remove('hidden');
+                    showToast('获取完成', 'success');
+                } else {
+                    showToast(data.error || '获取失败', 'error');
+                }
+            } catch (error) {
+                showToast('网络错误: ' + error.message, 'error');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        // Threshold filtering functionality
+        async function filterByThreshold() {
+            const query = document.getElementById('thresholdQuery').value.trim();
+            const documentsText = document.getElementById('thresholdDocuments').value.trim();
+            const threshold = parseFloat(document.getElementById('thresholdValue').value);
+
+            if (!query) {
+                showToast('请输入查询文本', 'error');
+                return;
+            }
+
+            if (!documentsText) {
+                showToast('请输入候选文档', 'error');
+                return;
+            }
+
+            const documents = documentsText.split('\n').filter(doc => doc.trim());
+            if (documents.length === 0) {
+                showToast('请输入有效的候选文档', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('thresholdBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>筛选中...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/api/relevant_by_threshold', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        query: query,
+                        documents: documents,
+                        threshold: threshold
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    displayThresholdResults(data);
+                    currentResults = { type: 'threshold', data: data };
+                    document.getElementById('downloadThresholdResults').classList.remove('hidden');
+                    showToast('筛选完成', 'success');
+                } else {
+                    showToast(data.error || '筛选失败', 'error');
+                }
+            } catch (error) {
+                showToast('网络错误: ' + error.message, 'error');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        // Test API functionality
+        async function testApi() {
+            const query = document.getElementById('testQuery').value.trim();
+            const documentsText = document.getElementById('testDocuments').value.trim();
+            
+            let documents = null;
+            if (documentsText) {
+                documents = documentsText.split('\n').filter(doc => doc.trim());
+            }
+
+            const btn = document.getElementById('testApiBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>测试中...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/api/test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        query: query || undefined,
+                        documents: documents || undefined
+                    })
+                });
+
+                const data = await response.json();
+                displayTestResults(data);
+                
+                if (data.success) {
+                    showToast('测试完成', 'success');
+                } else {
+                    showToast(data.error || '测试失败', 'error');
+                }
+            } catch (error) {
+                showToast('网络错误: ' + error.message, 'error');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        // Display functions
+        function displayRerankResults(data) {
+            const container = document.getElementById('rerankResults');
+            container.innerHTML = '';
+
+            if (!data.results || data.results.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-exclamation-circle text-3xl mb-2"></i>
+                        <p>没有找到重排序结果</p>
+                    </div>
+                `;
+                return;
+            }
+
+            data.results.forEach((result, index) => {
+                const relevancePercent = (result.relevance_score * 100).toFixed(1);
+                const item = document.createElement('div');
+                item.className = 'result-item bg-gray-50 rounded-lg p-4 border border-gray-200';
+                item.innerHTML = `
+                    <div class="flex items-start justify-between mb-2">
+                        <div class="flex items-center space-x-2">
+                            <span class="inline-flex items-center justify-center w-6 h-6 bg-primary text-white text-sm font-medium rounded-full">
+                                ${index + 1}
+                            </span>
+                            <span class="text-sm font-medium text-gray-900">相关性: ${result.relevance_score.toFixed(4)}</span>
+                        </div>
+                        <span class="text-xs text-gray-500">索引: ${result.index}</span>
+                    </div>
+                    <p class="text-gray-700 mb-2">${result.document}</p>
+                    <div class="w-full bg-gray-200 rounded-full h-1">
+                        <div class="relevance-bar bg-primary rounded-full" style="width: ${relevancePercent}%"></div>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function displayTopResults(data) {
+            const container = document.getElementById('topResults');
+            container.innerHTML = '';
+
+            if (!data.results || data.results.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-exclamation-circle text-3xl mb-2"></i>
+                        <p>没有找到相关文档</p>
+                    </div>
+                `;
+                return;
+            }
+
+            data.results.forEach((result, index) => {
+                const relevancePercent = (result.relevance_score * 100).toFixed(1);
+                const item = document.createElement('div');
+                item.className = 'result-item bg-gray-50 rounded-lg p-4 border border-gray-200';
+                item.innerHTML = `
+                    <div class="flex items-start justify-between mb-2">
+                        <div class="flex items-center space-x-2">
+                            <span class="inline-flex items-center justify-center w-6 h-6 bg-success text-white text-sm font-medium rounded-full">
+                                ${index + 1}
+                            </span>
+                            <span class="text-sm font-medium text-gray-900">相关性: ${result.relevance_score.toFixed(4)}</span>
+                        </div>
+                        <span class="text-xs text-gray-500">索引: ${result.index}</span>
+                    </div>
+                    <p class="text-gray-700 mb-2">${result.document}</p>
+                    <div class="w-full bg-gray-200 rounded-full h-1">
+                        <div class="relevance-bar bg-success rounded-full" style="width: ${relevancePercent}%"></div>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function displayThresholdResults(data) {
+            const container = document.getElementById('thresholdResults');
+            container.innerHTML = '';
+
+            if (!data.results || data.results.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-exclamation-circle text-3xl mb-2"></i>
+                        <p>没有找到符合阈值的文档</p>
+                        <p class="text-sm mt-1">尝试降低阈值或检查文档内容</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Add summary
+            const summary = document.createElement('div');
+            summary.className = 'bg-blue-50 rounded-lg p-3 mb-4 border border-blue-200';
+            summary.innerHTML = `
+                <div class="flex items-center justify-between text-sm">
+                    <span class="text-blue-700">阈值: ${data.threshold}</span>
+                    <span class="text-blue-700">符合条件: ${data.relevant_count}/${data.total_documents}</span>
+                </div>
+            `;
+            container.appendChild(summary);
+
+            data.results.forEach((result, index) => {
+                const relevancePercent = (result.relevance_score * 100).toFixed(1);
+                const item = document.createElement('div');
+                item.className = 'result-item bg-gray-50 rounded-lg p-4 border border-gray-200';
+                item.innerHTML = `
+                    <div class="flex items-start justify-between mb-2">
+                        <div class="flex items-center space-x-2">
+                            <span class="inline-flex items-center justify-center w-6 h-6 bg-warning text-white text-sm font-medium rounded-full">
+                                ${index + 1}
+                            </span>
+                            <span class="text-sm font-medium text-gray-900">相关性: ${result.relevance_score.toFixed(4)}</span>
+                        </div>
+                        <span class="text-xs text-gray-500">索引: ${result.index}</span>
+                    </div>
+                    <p class="text-gray-700 mb-2">${result.document}</p>
+                    <div class="w-full bg-gray-200 rounded-full h-1">
+                        <div class="relevance-bar bg-warning rounded-full" style="width: ${relevancePercent}%"></div>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function displayTestResults(data) {
+            const container = document.getElementById('testResults');
+            container.innerHTML = '';
+
+            // Connection status
+            const connectionStatus = document.createElement('div');
+            connectionStatus.className = `p-4 rounded-lg border ${data.success ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`;
+            connectionStatus.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas ${data.success ? 'fa-check-circle text-green-500' : 'fa-times-circle text-red-500'} mr-2"></i>
+                    <span class="font-medium ${data.success ? 'text-green-700' : 'text-red-700'}">
+                        ${data.success ? 'API连接正常' : 'API连接失败'}
+                    </span>
+                </div>
+                ${data.error ? `<p class="text-red-600 text-sm mt-2">${data.error}</p>` : ''}
+            `;
+            container.appendChild(connectionStatus);
+
+            if (data.success) {
+                // API details
+                const details = document.createElement('div');
+                details.className = 'mt-4 space-y-3';
+                details.innerHTML = `
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <h4 class="font-medium text-gray-900 mb-2">API信息</h4>
+                        <div class="space-y-1 text-sm text-gray-600">
+                            <div>连接测试: ${data.connection_test ? '✅ 成功' : '❌ 失败'}</div>
+                            <div>支持的模型: ${data.supported_models.join(', ')}</div>
+                            <div>测试时间: ${new Date(data.timestamp).toLocaleString()}</div>
+                        </div>
+                    </div>
+                `;
+
+                // Rerank test results
+                if (data.rerank_test) {
+                    const rerankTest = document.createElement('div');
+                    rerankTest.className = 'bg-gray-50 rounded-lg p-4';
+                    
+                    if (data.rerank_test.success) {
+                        rerankTest.innerHTML = `
+                            <h4 class="font-medium text-gray-900 mb-2">重排序测试</h4>
+                            <div class="space-y-1 text-sm text-gray-600">
+                                <div>查询: ${data.rerank_test.query}</div>
+                                <div>文档数量: ${data.rerank_test.document_count}</div>
+                                <div>结果数量: ${data.rerank_test.results_count}</div>
+                            </div>
+                            ${data.rerank_test.sample_results.length > 0 ? `
+                                <div class="mt-3">
+                                    <h5 class="text-sm font-medium text-gray-700 mb-2">示例结果:</h5>
+                                    <div class="space-y-2">
+                                        ${data.rerank_test.sample_results.map((result, index) => `
+                                            <div class="text-xs bg-white rounded p-2 border">
+                                                <div class="font-medium">${index + 1}. 相关性: ${result.relevance_score.toFixed(4)}</div>
+                                                <div class="text-gray-600 mt-1">${result.document.substring(0, 100)}${result.document.length > 100 ? '...' : ''}</div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                        `;
+                    } else {
+                        rerankTest.innerHTML = `
+                            <h4 class="font-medium text-gray-900 mb-2">重排序测试</h4>
+                            <div class="text-red-600 text-sm">❌ 测试失败: ${data.rerank_test.error}</div>
+                        `;
+                    }
+                    details.appendChild(rerankTest);
+                }
+
+                container.appendChild(details);
+            }
+        }
+
+        // Download functionality
+        function downloadResults(type) {
+            if (!currentResults || currentResults.type !== type) {
+                showToast('没有可下载的结果', 'error');
+                return;
+            }
+
+            const data = currentResults.data;
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const filename = `rerank_results_${type}_${timestamp}.json`;
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showToast('结果已下载', 'success');
+        }
+
+        // Toast notification system
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toastIcon');
+            const messageEl = document.getElementById('toastMessage');
+            
+            // Set message
+            messageEl.textContent = message;
+            
+            // Set icon and color based on type
+            const iconClass = {
+                'success': 'fas fa-check-circle text-green-500',
+                'error': 'fas fa-exclamation-circle text-red-500',
+                'warning': 'fas fa-exclamation-triangle text-yellow-500',
+                'info': 'fas fa-info-circle text-blue-500'
+            };
+            
+            icon.innerHTML = `<i class="${iconClass[type] || iconClass.info}"></i>`;
+            
+            // Show toast
+            toast.classList.remove('translate-x-full');
+            toast.classList.add('translate-x-0');
+            
+            // Auto hide after 3 seconds
+            setTimeout(() => {
+                hideToast();
+            }, 3000);
+        }
+
+        function hideToast() {
+            const toast = document.getElementById('toast');
+            toast.classList.remove('translate-x-0');
+            toast.classList.add('translate-x-full');
+        }
+
+        // Utility functions
+        function formatTimestamp(timestamp) {
+            return new Date(timestamp * 1000).toLocaleString();
+        }
+
+        function truncateText(text, maxLength = 100) {
+            return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+        }
+    </script>
+</body>
+</html>

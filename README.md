@@ -1,17 +1,17 @@
-# AI Text Embedding Generator - 智谱GLM文本嵌入生成器
+# AI Text Reranking System - 智谱GLM文本重排序系统
 
-基于智谱AI GLM嵌入模型的高质量文本嵌入系统，将文本转换为高维向量表示，用于语义相似性和搜索。
+基于智谱AI GLM重排序模型的高质量文本重排序系统，对候选文档进行相关性排序，用于信息检索和文档排序。
 
 ## ✨ 主要特性
 
-- 🔤 **文本嵌入生成**: 基于智谱GLM嵌入模型
-- 🔧 **多模型支持**: embedding-3、embedding-2
-- 🔍 **相似度计算**: 计算文本间的语义相似度
-- 🔎 **相似文本搜索**: 在候选文本中找到最相似的内容
+- 🔄 **文档重排序**: 基于智谱GLM重排序模型
+- 🏆 **最相关文档**: 获取与查询最相关的前N个文档
+- 🎯 **阈值筛选**: 根据相关性阈值筛选符合条件的文档
 - 🌐 **Web界面**: 现代化的响应式Web界面
 - 🔌 **MCP服务器**: 支持Model Context Protocol
-- 📦 **批量处理**: 支持批量文本嵌入
-- 💾 **数据导出**: 支持嵌入向量的保存和加载
+- 📦 **批量处理**: 支持批量文档重排序
+- 💾 **数据导出**: 支持重排序结果的保存和加载
+- 🧪 **API测试**: 内置API连接测试功能
 
 ## 🚀 快速开始
 
@@ -36,9 +36,7 @@ pip install -r requirements.txt
 
 ```json
 {
-  "api_keys": {
-    "zhipu": "your_zhipu_api_key_here"
-  }
+  "zhipu_api_key": "your_zhipu_api_key_here"
 }
 ```
 
@@ -52,7 +50,7 @@ export ZHIPU_API_KEY="your_zhipu_api_key_here"
 ```json
 {
   "mcpServers":{
-    "mcp-text-embedding": {
+    "mcp-text-reranking": {
       "disabled": false,
       "timeout": 60,
       "type": "sse",
@@ -67,7 +65,7 @@ export ZHIPU_API_KEY="your_zhipu_api_key_here"
 #### 1. Web界面模式（推荐）
 
 ```bash
-python embedding_server.py
+python rerank_server.py
 ```
 
 然后访问 http://localhost:5000
@@ -75,116 +73,134 @@ python embedding_server.py
 #### 2. 交互式命令行模式
 
 ```bash
-python main.py
+python main_rerank.py
 ```
 
 #### 3. MCP服务器模式
 
 ```bash
-python main.py --mcp
+python main_rerank.py --mcp
 ```
 
 ## 🎯 支持的模型
 
 | 模型 | 描述 | 特点 |
 |------|------|------|
-| embedding-3 | 最新的嵌入模型 | 高质量文本向量表示，推荐使用 |
-| embedding-2 | 较早版本的嵌入模型 | 兼容性更好，稳定性高 |
+| rerank | 智谱AI文本重排序模型 | 高质量文档相关性排序，推荐使用 |
 
-## 🔤 主要功能
+## 🔄 主要功能
 
-- **单文本嵌入** - 将单个文本转换为高维向量
-- **批量文本嵌入** - 同时处理多个文本
-- **相似度计算** - 计算两个文本的语义相似度
-- **相似文本搜索** - 在候选文本中找到最相似的内容
+- **文档重排序** - 根据查询文本对候选文档进行相关性排序
+- **最相关文档获取** - 获取与查询最相关的前N个文档
+- **阈值筛选** - 根据相关性阈值筛选符合条件的文档
+- **API测试** - 测试智谱AI重排序API的连接状态
 
 ## 🎨 使用示例
 
 ### Python API调用
 
 ```python
-from zhipu_image_client import ZhipuImageClient
+from zhipu_rerank_client import ZhipuRerankClient
 
 # 初始化客户端
-client = ZhipuImageClient()
+client = ZhipuRerankClient(api_key="your_api_key")
 
-# 生成图像
-result = client.generate_and_save_image(
-    prompt="一只可爱的柯基犬在樱花树下奔跑",
-    model="cogview-4",
-    size="1024x1024",
-    quality="standard"
-)
-
-if result["success"]:
-    print(f"图像已保存到: {result['file_path']}")
-    print(f"图像URL: {result['image_url']}")
-else:
-    print(f"生成失败: {result['error']}")
-```
-
-### 批量生成
-
-```python
-# 批量生成多张图像
-prompts = [
-    "一只橘猫在阳光下打盹",
-    "未来科技城市夜景",
-    "水彩画风格的山水画"
+# 文档重排序
+query = "人工智能的发展历史"
+documents = [
+    "人工智能起源于20世纪50年代，由图灵等科学家奠定基础",
+    "今天的天气很好，适合出门散步",
+    "机器学习是人工智能的重要分支",
+    "深度学习在近年来取得了突破性进展"
 ]
 
-result = client.batch_generate_images(
-    prompts=prompts,
-    model="cogview-4",
-    size="1024x1024"
+result = client.rerank(
+    query=query,
+    documents=documents,
+    model="rerank"
 )
 
-print(f"成功生成: {result['successful']}/{result['total']} 张图像")
+print("重排序结果:")
+for i, item in enumerate(result["results"]):
+    print(f"{i+1}. {item['document']} (相关性: {item['relevance_score']:.4f})")
+```
+
+### 获取最相关文档
+
+```python
+# 获取前3个最相关的文档
+top_docs = client.get_ranked_documents(
+    query=query,
+    documents=documents,
+    model="rerank",
+    top_k=3
+)
+
+print("最相关的文档:")
+for i, doc in enumerate(top_docs):
+    print(f"{i+1}. {doc['document']} (相关性: {doc['relevance_score']:.4f})")
+```
+
+### 阈值筛选
+
+```python
+# 筛选相关性超过0.7的文档
+relevant_docs = client.find_most_relevant(
+    query=query,
+    documents=documents,
+    model="rerank",
+    threshold=0.7
+)
+
+print(f"找到 {len(relevant_docs)} 个高相关性文档")
 ```
 
 ### MCP工具调用
 
 ```python
-# 生成图像
-generate_image_from_prompt(
-    prompt="一朵红色的玫瑰花",
-    model="cogview-4",
-    size="1024x1024",
-    quality="hd",
-    save_file=True
+# 文档重排序
+rerank_documents(
+    query="查询文本",
+    documents=["文档1", "文档2", "文档3"],
+    model="rerank"
 )
 
-# 批量生成
-batch_generate_images(
-    prompts=["猫咪", "狗狗", "兔子"],
-    model="cogview-3-flash",
-    size="512x512"
+# 获取最相关文档
+get_top_relevant_documents(
+    query="查询文本",
+    documents=["文档1", "文档2", "文档3"],
+    top_k=5
 )
 
-# 获取支持的选项
-get_supported_options()
+# 阈值筛选
+find_relevant_documents(
+    query="查询文本",
+    documents=["文档1", "文档2", "文档3"],
+    threshold=0.5
+)
 
 # 测试API连接
-test_image_api("测试图像")
+test_rerank_api("测试查询", ["测试文档"])
 ```
 
 ## 🌐 Web界面功能
 
-- **智能提示词输入**: 支持多行文本输入和示例提示词
-- **参数配置**: 可视化选择模型、尺寸和质量
-- **实时预览**: 生成后立即显示图像
-- **历史记录**: 保存最近的生成历史
-- **下载功能**: 一键下载生成的图像
-- **API状态监控**: 实时显示API连接状态
+- **文档重排序**: 输入查询和候选文档，获得排序结果
+- **最相关文档**: 获取前N个最相关的文档
+- **阈值筛选**: 根据相关性阈值筛选文档
+- **API测试**: 测试API连接状态和功能
+- **实时状态监控**: 显示API连接状态
+- **结果可视化**: 相关性分数条形图显示
+- **下载功能**: 一键下载重排序结果
 
 ## 📁 项目结构
 
 ```
-AI-Image-Generator/
-├── main.py                 # 主程序入口
-├── zhipu_image_client.py   # 智谱图像生成客户端
-├── image_server.py         # Web服务器
-├── image_interface.html    # Web界面
+AI-Text-Reranking/
+├── main_rerank.py          # 重排序主程序入口
+├── zhipu_rerank_client.py  # 智谱重排序客户端
+├── rerank_server.py        # Web服务器
+├── rerank_interface.html   # Web界面
 ├── network_diagnostic.py   # 网络诊断工具
 ├── config.json            # 配置文件
 ├── outputs/               # 输出目录
@@ -197,37 +213,35 @@ AI-Image-Generator/
 
 ```json
 {
-  "api_keys": {
-    "zhipu": "your_api_key"
-  },
-  "api_settings": {
-    "timeout": 120,
-    "max_retries": 3,
-    "base_url": "https://open.bigmodel.cn/api/paas/v4/images/generations"
+  "zhipu_api_key": "your_api_key",
+  "text_rerank": {
+    "base_url": "https://open.bigmodel.cn",
+    "timeout": 30,
+    "max_retries": 3
   }
 }
 ```
 
-### 生成参数
+### 重排序参数
 
-- **prompt**: 图像描述提示词（必需）
-- **model**: 生成模型（默认: cogview-4）
-- **size**: 图像尺寸（默认: 1024x1024）
-- **quality**: 图像质量（默认: standard）
+- **query**: 查询文本（必需）
+- **documents**: 候选文档列表（必需）
+- **model**: 重排序模型（默认: rerank）
 
 ## 🛠️ 开发指南
 
-### 添加新模型
+### 添加新功能
 
-1. 在 `zhipu_image_client.py` 中更新 `image_models` 字典
-2. 确保API支持新模型
-3. 更新Web界面的模型选项
+1. 在 `zhipu_rerank_client.py` 中添加新的API方法
+2. 在 `main_rerank.py` 中添加对应的MCP工具
+3. 在 `rerank_server.py` 中添加Web API接口
+4. 更新Web界面添加新功能
 
 ### 自定义输出格式
 
 ```python
 # 修改保存格式
-def save_custom_format(self, image_data, filename, format="png"):
+def save_custom_format(self, rerank_data, filename, format="json"):
     # 自定义保存逻辑
     pass
 ```
@@ -244,9 +258,10 @@ def save_custom_format(self, image_data, filename, format="png"):
    - 运行网络诊断: `python network_diagnostic.py`
    - 检查防火墙和代理设置
 
-3. **图像生成失败**
-   - 检查提示词是否包含敏感内容
-   - 尝试使用不同的模型或参数
+3. **重排序失败**
+   - 检查查询文本和文档是否为空
+   - 确认文档数量不超过API限制
+   - 尝试使用不同的查询文本
 
 4. **Web界面无法访问**
    - 确认端口5000未被占用
@@ -257,14 +272,36 @@ def save_custom_format(self, image_data, filename, format="png"):
 ```bash
 # 启用详细日志
 export LOG_LEVEL=DEBUG
-python main.py
+python main_rerank.py
 ```
 
 ## 📊 性能优化
 
-- 使用 `cogview-3-flash` 模型获得更快的生成速度
-- 批量生成时适当增加延迟避免API限制
-- 选择合适的图像尺寸平衡质量和速度
+- 合理控制候选文档数量（建议不超过100个）
+- 使用简洁明确的查询文本
+- 批量处理时适当增加延迟避免API限制
+- 根据需求设置合适的相关性阈值
+
+## 🔌 API接口
+
+### RESTful API
+
+- `POST /api/rerank` - 文档重排序
+- `POST /api/top_relevant` - 获取最相关文档
+- `POST /api/relevant_by_threshold` - 按阈值筛选相关文档
+- `GET /api/models` - 获取支持的模型
+- `POST /api/test` - 测试API连接
+- `GET /api/status` - 获取服务状态
+
+### MCP工具
+
+- `rerank_documents` - 文档重排序
+- `get_top_relevant_documents` - 获取最相关文档
+- `find_relevant_documents` - 查找相关文档
+- `get_supported_rerank_models` - 获取支持的模型
+- `test_rerank_api` - 测试API连接
+- `save_rerank_results_to_file` - 保存结果到文件
+- `load_rerank_results_from_file` - 从文件加载结果
 
 ## 🤝 贡献指南
 
@@ -280,7 +317,7 @@ MIT License
 
 ## 🙏 致谢
 
-- 智谱AI提供的CogView-4模型
+- 智谱AI提供的Rerank模型
 - Flask和相关Web框架
 - 所有贡献者和用户
 
@@ -294,4 +331,4 @@ MIT License
 
 ---
 
-**享受AI图像生成的乐趣！** 🎨✨
+**享受AI文本重排序的便利！** 🔄✨
