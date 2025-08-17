@@ -28,6 +28,12 @@ class ZhipuAgentClient:
         # 智能体对话API端点
         self.agents_url = f"{self.base_url}/api/v1/agents"
         
+        # 普通对话API端点
+        self.chat_url = f"{self.base_url}/api/paas/v4/chat/completions"
+        
+        # 文件上传API端点
+        self.files_url = f"{self.base_url}/api/paas/v4/files"
+        
         # 内容安全API端点（保留原功能）
         self.moderation_url = f"{self.base_url}/api/paas/v4/moderations"
         
@@ -104,6 +110,124 @@ class ZhipuAgentClient:
         except json.JSONDecodeError:
             raise Exception("API响应格式错误")
     
+    def upload_text_as_file(self, text_content: str, filename: str = "user_input.txt") -> Optional[str]:
+        """
+        将文本内容上传为文件
+        
+        Args:
+            text_content: 文本内容
+            filename: 文件名
+            
+        Returns:
+            文件ID，如果上传失败返回None
+        """
+        try:
+            # 准备文件数据
+            files = {
+                'file': (filename, text_content.encode('utf-8'), 'text/plain')
+            }
+            
+            # 准备额外的表单数据
+            data = {
+                'purpose': 'retrieval'  # 智谱AI可能需要指定用途
+            }
+            
+            # 准备请求头（不包含Content-Type，让requests自动设置）
+            headers = {
+                "Authorization": f"Bearer {self.api_key}"
+            }
+            
+            print(f"上传文件到: {self.files_url}")
+            print(f"文件名: {filename}")
+            print(f"内容长度: {len(text_content)} 字符")
+            
+            response = requests.post(
+                self.files_url,
+                headers=headers,
+                files=files,
+                data=data,
+                timeout=30
+            )
+            
+            print(f"上传响应状态码: {response.status_code}")
+            print(f"上传响应内容: {response.text}")
+            
+            if response.status_code == 200:
+                result = response.json()
+                file_id = result.get("id")
+                print(f"文件上传成功，文件ID: {file_id}")
+                return file_id
+            else:
+                print(f"文件上传失败，状态码: {response.status_code}")
+                return None
+                
+        except Exception as e:
+            print(f"文件上传异常: {str(e)}")
+            return None
+    
+    def chat_with_direct_api(
+        self,
+        user_message: str,
+        model: str = "glm-4",
+        temperature: float = 0.7,
+        max_tokens: int = 1000
+    ) -> Dict[str, Any]:
+        """
+        使用普通对话API进行对话
+        
+        Args:
+            user_message: 用户消息
+            model: 模型名称
+            temperature: 温度参数
+            max_tokens: 最大token数
+            
+        Returns:
+            对话结果字典
+        """
+        request_data = {
+            "model": model,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": user_message
+                }
+            ],
+            "temperature": temperature,
+            "max_tokens": max_tokens
+        }
+        
+        try:
+            response = requests.post(
+                self.chat_url,
+                headers=self.headers,
+                json=request_data,
+                timeout=30
+            )
+            
+            if response.status_code != 200:
+                error_msg = f"API请求失败，状态码: {response.status_code}"
+                try:
+                    error_data = response.json()
+                    if "error" in error_data:
+                        error_msg += f", 错误信息: {error_data['error']['message']}"
+                    elif "message" in error_data:
+                        error_msg += f", 错误信息: {error_data['message']}"
+                except:
+                    error_msg += f", 响应内容: {response.text}"
+                raise Exception(error_msg)
+            
+            result = response.json()
+            return result
+            
+        except requests.exceptions.Timeout:
+            raise Exception("请求超时，请稍后重试")
+        except requests.exceptions.ConnectionError:
+            raise Exception("网络连接错误，请检查网络连接")
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"请求异常: {str(e)}")
+        except json.JSONDecodeError:
+            raise Exception("API响应格式错误")
+    
     def chat_with_text(
         self, 
         agent_id: str, 
@@ -112,6 +236,7 @@ class ZhipuAgentClient:
     ) -> Dict[str, Any]:
         """
         发送文本消息与智能体对话
+        首先尝试智能体API，如果失败则使用普通对话API
         
         Args:
             agent_id: 智能体ID
@@ -121,14 +246,46 @@ class ZhipuAgentClient:
         Returns:
             对话结果字典
         """
-        messages = [
-            {
-                "role": "user",
-                "content": user_message
-            }
-        ]
-        
-        return self.chat_with_agent(agent_id, messages, conversation_id)
+        try:
+            # 首先尝试智能体API（需要文件上传）
+            file_id = self.upload_text_as_file(user_message)
+            if file_id:
+                # 使用文件ID进行智能体对话
+                return self.chat_with_file(agent_id, file_id, conversation_id)
+            else:
+                # 如果文件上传失败，使用普通对话API作为回退
+                print("智能体API文件上传失败，使用普通对话API作为回退...")
+                result = self.chat_with_direct_api(user_message)
+                
+                # 转换为统一格式
+                return {
+                    "agent_id": agent_id,
+                    "conversation_id": conversation_id or "",
+                    "choices": result.get("choices", []),
+                    "usage": result.get("usage", {}),
+                    "fallback_to_direct_api": True
+                }
+        except Exception as e:
+            # 如果智能体API完全失败，使用普通对话API作为回退
+            try:
+                print(f"智能体API失败: {str(e)}，使用普通对话API作为回退...")
+                result = self.chat_with_direct_api(user_message)
+                
+                # 转换为统一格式
+                return {
+                    "agent_id": agent_id,
+                    "conversation_id": conversation_id or "",
+                    "choices": result.get("choices", []),
+                    "usage": result.get("usage", {}),
+                    "fallback_to_direct_api": True,
+                    "original_error": str(e)
+                }
+            except Exception as fallback_error:
+                return {
+                    "error": f"智能体API和普通对话API都失败了。智能体API错误: {str(e)}，普通对话API错误: {str(fallback_error)}",
+                    "agent_id": agent_id,
+                    "original_message": user_message
+                }
     
     def chat_with_file(
         self, 
@@ -248,6 +405,7 @@ class ZhipuAgentClient:
     def extract_assistant_message(self, agent_result: Dict[str, Any]) -> str:
         """
         从智能体响应中提取助手消息
+        根据智谱AI智能体API文档，优先处理标准格式：choices[0].messages[].content
         
         Args:
             agent_result: 智能体响应结果
@@ -255,19 +413,63 @@ class ZhipuAgentClient:
         Returns:
             助手消息文本
         """
-        choices = agent_result.get("choices", [])
-        if not choices:
-            return ""
-        
-        # 获取第一个选择的消息
-        first_choice = choices[0]
-        messages = first_choice.get("messages", [])
-        
-        for message in messages:
-            if message.get("role") == "assistant":
-                return message.get("content", "")
-        
-        return ""
+        try:
+            # 优先处理智能体API标准格式：choices[0].messages[]
+            choices = agent_result.get("choices", [])
+            if choices and len(choices) > 0:
+                first_choice = choices[0]
+                
+                # 智能体API格式：choices[0].messages[]
+                messages = first_choice.get("messages", [])
+                if messages:
+                    # 查找role为assistant的消息，跳过空内容
+                    for message in messages:
+                        if isinstance(message, dict) and message.get("role") == "assistant":
+                            content = message.get("content", "")
+                            
+                            # 处理content为字符串的情况
+                            if isinstance(content, str) and content.strip():
+                                return content.strip()
+                            
+                            # 处理content为对象的情况（智谱AI实际格式）
+                            elif isinstance(content, dict):
+                                # 检查是否有text字段
+                                if "text" in content:
+                                    text_content = content["text"]
+                                    if isinstance(text_content, str) and text_content.strip():
+                                        return text_content.strip()
+                                
+                                # 检查是否有content字段（嵌套结构）
+                                elif "content" in content:
+                                    nested_content = content["content"]
+                                    if isinstance(nested_content, str) and nested_content.strip():
+                                        return nested_content.strip()
+                
+                # 兼容普通对话API格式：choices[0].message.content
+                if "message" in first_choice:
+                    message = first_choice["message"]
+                    if isinstance(message, dict) and message.get("role") == "assistant":
+                        content = message.get("content", "")
+                        if content and isinstance(content, str):
+                            return content.strip()
+            
+            # 如果标准格式没有找到，尝试其他可能的字段（向后兼容）
+            fallback_fields = ["message", "content", "response", "output"]
+            for field in fallback_fields:
+                if field in agent_result:
+                    value = agent_result[field]
+                    if isinstance(value, str) and value.strip():
+                        return value.strip()
+                    elif isinstance(value, dict) and value.get("role") == "assistant":
+                        content = value.get("content", "")
+                        if content and isinstance(content, str):
+                            return content.strip()
+            
+            # 如果都没有找到有效内容，返回调试信息
+            return f"未找到助手消息。响应结构: {list(agent_result.keys())}"
+            
+        except Exception as e:
+            return f"提取助手消息时出错: {str(e)}"
     
     def format_moderation_result(self, moderation_result: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -384,7 +586,7 @@ class ZhipuAgentClient:
         try:
             # 使用一个简单的测试请求
             test_agent_result = self.chat_with_text(
-                "doc_translation_agent", 
+                "general_translation", 
                 "Hello, this is a connection test."
             )
             test_results["agent_api"] = True

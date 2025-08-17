@@ -51,7 +51,7 @@ def test_agent_dialogue():
     # 测试文本对话
     print("\n2. 测试智能体文本对话...")
     try:
-        agent_id = "doc_translation_agent"
+        agent_id = "general_translation"
         test_message = "你好，请介绍一下你的功能。"
         
         print(f"   智能体ID: {agent_id}")

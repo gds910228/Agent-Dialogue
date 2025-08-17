@@ -50,7 +50,7 @@ cp config.json.example config.json
     "agents_endpoint": "/api/v1/agents",
     "timeout": 30,
     "max_retries": 3,
-    "default_agent_id": "doc_translation_agent"
+    "default_agent_id": "general_translation"
   },
   "content_moderation": {
     "base_url": "https://open.bigmodel.cn",
@@ -162,11 +162,11 @@ curl --request POST \
   --header 'Authorization: Bearer <token>' \
   --header 'Content-Type: application/json' \
   --data '{
-  "agent_id": "doc_translation_agent",
+  "agent_id": "general_translation",
   "messages": [
     {
       "role": "user",
-      "content": "你好，请介绍一下你的功能"
+      "content": "你好，请翻译这段文本为英文：这是一段中文"
     }
   ]
 }'
@@ -180,7 +180,7 @@ curl --request POST \
   --header 'Authorization: Bearer <token>' \
   --header 'Content-Type: application/json' \
   --data '{
-  "agent_id": "doc_translation_agent",
+  "agent_id": "general_translation",
   "messages": [
     {
       "role": "user",
@@ -301,12 +301,12 @@ from zhipu_agent_client import ZhipuAgentClient
 client = ZhipuAgentClient(api_key="your_api_key")
 
 # 文本对话
-result = client.chat_with_text("doc_translation_agent", "你好，请介绍一下你的功能")
+result = client.chat_with_text("general_translation", "你好，请介绍一下你的功能")
 assistant_message = client.extract_assistant_message(result)
 print(f"智能体回复: {assistant_message}")
 
 # 文件对话
-result = client.chat_with_file("doc_translation_agent", "file_id_here")
+result = client.chat_with_file("general_translation", "file_id_here")
 assistant_message = client.extract_assistant_message(result)
 print(f"智能体回复: {assistant_message}")
 ```

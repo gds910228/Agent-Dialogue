@@ -8,7 +8,7 @@
     "agents_endpoint": "/api/v1/agents",
     "timeout": 30,
     "max_retries": 3,
-    "default_agent_id": "doc_translation_agent"
+    "default_agent_id": "general_translation"
   },
   "content_moderation": {
     "base_url": "https://open.bigmodel.cn",

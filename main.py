@@ -327,7 +327,7 @@ def test_agent_api(agent_id: Optional[str] = None, test_text: Optional[str] = No
     测试智能体API连接和功能
     
     Args:
-        agent_id: 可选的智能体ID，默认使用doc_translation_agent
+        agent_id: 可选的智能体ID，默认使用general_translation
         test_text: 可选的测试文本内容
     
     Returns:
@@ -346,7 +346,7 @@ def test_agent_api(agent_id: Optional[str] = None, test_text: Optional[str] = No
         
         # 如果提供了测试参数，进行智能体对话测试
         if agent_id or test_text:
-            test_agent_id = agent_id or "doc_translation_agent"
+            test_agent_id = agent_id or "general_translation"
             test_message = test_text or "Hello, this is a connection test."
             
             try:
@@ -645,9 +645,9 @@ def handle_agent_text_chat():
     """处理智能体文本对话"""
     print("\n🤖 智能体文本对话")
     
-    agent_id = input("请输入智能体ID (默认: doc_translation_agent): ").strip()
+    agent_id = input("请输入智能体ID (默认: general_translation): ").strip()
     if not agent_id:
-        agent_id = "doc_translation_agent"
+        agent_id = "general_translation"
     
     user_message = input("请输入您的消息: ").strip()
     if not user_message:
@@ -678,9 +678,9 @@ def handle_agent_file_chat():
     """处理智能体文件对话"""
     print("\n📁 智能体文件对话")
     
-    agent_id = input("请输入智能体ID (默认: doc_translation_agent): ").strip()
+    agent_id = input("请输入智能体ID (默认: general_translation): ").strip()
     if not agent_id:
-        agent_id = "doc_translation_agent"
+        agent_id = "general_translation"
     
     file_id = input("请输入文件ID: ").strip()
     if not file_id:
@@ -835,9 +835,9 @@ def handle_api_test():
     """处理API测试"""
     print("\n🔧 API连接测试")
     
-    agent_id = input("请输入智能体ID (可选，默认: doc_translation_agent): ").strip()
+    agent_id = input("请输入智能体ID (可选，默认: general_translation): ").strip()
     if not agent_id:
-        agent_id = "doc_translation_agent"
+        agent_id = "general_translation"
     
     test_text = input("请输入测试文本 (可选): ").strip()
     if not test_text:
